@@ -3,7 +3,6 @@
 #ifdef _WIN32 || WIN32 
 #include <Windows.h>
 #endif
-#include "SVFDatabasePager.h"
 #include "SVFComputeTools.h"
 #include "ShapeFile.h"
 #include <osgDB/fstream> 
@@ -77,9 +76,6 @@ int main(int argc, char **argv)
 	// add the LOD Scale handler
 	 viewer->addEventHandler(new osgViewer::LODScaleHandler);
 
-	VGEDatabasePager* databasePager = new VGEDatabasePager;
-	databasePager->resume();
-	viewer->getScene()->setDatabasePager(databasePager);
 	std::vector<osg::Vec3d> normals;
 	std::vector<osg::Vec3d> points;
 
@@ -110,8 +106,6 @@ int main(int argc, char **argv)
 		points.push_back(pos);
 		OGRFeature::DestroyFeature(poFeature);
 		viewer->setCameraManipulator(NULL, false);
-		VGEDatabasePager* databasePager = (VGEDatabasePager*)viewer->getDatabasePager();
-		databasePager->pause();
 
 		osg::Vec3d observer = pos;
 		osg::Vec3d observerNormal = normal;
@@ -123,16 +117,14 @@ int main(int argc, char **argv)
 		}
 		cubemapCameras->setNodeMask(true);
 		viewer->frame();
-		databasePager->frame();
-		while (databasePager->getFileRequestListSize() > 0)
+		while (viewer->getDatabasePager()->getRequestsInProgress())
 		{
 			viewer->frame();
-			databasePager->frame();
 		}
 		viewer->frame();
 
 		cubemapCameras->setNodeMask(false);
-		databasePager->resume();
+		
 		viewer->setCameraManipulator(manip.get(), false);
 
 		double svf = SVFComputeTools::calSVF(cubemap2fisheyeCamera->_image, false);

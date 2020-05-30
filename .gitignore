@@ -1,0 +1,13 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs/SVFEngine/v16
+/bin/cache
+/bin/street_points_svf.txt
+*.tlog
+*.obj
+*.log
+*.pdb
+*.txt
+/lib/SVFEngine.lib

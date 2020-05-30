@@ -24,7 +24,6 @@
 #include <osgDB/ReadFile>
 #include "osg/LineWidth"
 #include <osgSim/LineOfSight>
-#include "SVFDatabasePager.h"
 #include "PointRenderer.h"
 #include <osgText/Font>
 #include <osgText/Text>

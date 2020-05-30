@@ -45,14 +45,16 @@ void CameraBuffer::setupBuffer(int w, int h, osg::Vec3d dir, osg::Vec3d up, std:
 
 void CameraBuffer::update()
 {
-	osg::Matrix localOffset;
-	localOffset.makeLookAt(_pos, _pos + _dir * 100, _up);
-	osg::Matrix viewMatrix = localOffset;
-	setReferenceFrame(osg::Camera::ABSOLUTE_RF);
-	float nearDist = 0.1;
-	setProjectionMatrixAsFrustum(-nearDist, nearDist, -nearDist, nearDist, nearDist, 10000.0);
-	setViewMatrix(viewMatrix);
-	setClearColor(osg::Vec4(0, 0, 0, 0));
+		osg::Matrix localOffset;
+		localOffset.makeLookAt(_pos, _pos + _dir * 100, _up);
+		osg::Matrix viewMatrix = localOffset;
+		setReferenceFrame(osg::Camera::ABSOLUTE_RF);
+		float nearDist = 0.1;
+		setComputeNearFarMode(osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR);
+		//setProjectionMatrixAsFrustum(-nearDist, nearDist, -nearDist, nearDist, 0.01, 1000.0);
+		setProjectionMatrixAsPerspective(90, 1.0, 0.01, 1000000);
+		setViewMatrix(viewMatrix);
+		setClearColor(osg::Vec4(0, 0, 0, 0));
 }
 
 CameraBuffer * CameraBuffer::create(int w, int h, osg::Vec3d dir, osg::Vec3d up, std::string name)
@@ -647,25 +649,22 @@ void SkyViewFactorEventHandler::computeMouseIntersection(osgUtil::LineSegmentInt
 
 	_viewer->setCameraManipulator(NULL, false);
 	_viewer->frame();
-	VGEDatabasePager* databasePager = dynamic_cast<VGEDatabasePager*>(_viewer->getDatabasePager());
-	if (databasePager)
+	//while (_viewer->getDatabasePager()->getRequestsInProgress())
+	//{
+	//		_viewer->frame();
+	//}
+	for (size_t i = 0; i < 6; i++)
 	{
-		databasePager->pause();
-		databasePager->frame();
-		while (databasePager->getFileRequestListSize() > 0)
-		{
 			_viewer->frame();
-			databasePager->frame();
-		}
 	}
-
 	osgUtil::IntersectionVisitor visitor(ray);
 	_viewer->getCamera()->accept(visitor);
 	printfVec3(ray->getFirstIntersection().getWorldIntersectPoint());
 	osg::Vec3d observer = ray->getFirstIntersection().getWorldIntersectPoint();
 	osg::Vec3d observerNormal = ray->getFirstIntersection().getWorldIntersectNormal();
-	observer = observer + observerNormal * 2.5; //distance of camera from the surface
-	osg::Vec3d observerup = osg::Vec3(0, 0, 1);
+	observerNormal.normalize();
+	observer = observer + observerNormal * 0.1; //distance of camera from the surface
+	printfVec3(observerNormal);
 	_pointRenderer->setPoint(observer);
 
 	for (size_t i = 0; i < _cubemapCameras->getNumChildren(); i++)
@@ -675,33 +674,17 @@ void SkyViewFactorEventHandler::computeMouseIntersection(osgUtil::LineSegmentInt
 	}
 	_cubemapCameras->setNodeMask(true);
 	_viewer->frame();
-	if (databasePager)
+	//while (_viewer->getDatabasePager()->getRequestsInProgress())
+	//{
+	//		_viewer->frame();
+	//}
+	for (size_t i = 0; i < 6; i++)
 	{
-		databasePager->frame();
-		while (databasePager->getFileRequestListSize() > 0)
-		{
 			_viewer->frame();
-			if (databasePager)
-			{
-				databasePager->frame();
-			}
-		}
-		_viewer->frame();
 	}
-	else
-	{
-		for (size_t i = 0; i < 5; i++)
-		{
-			_viewer->frame();
-		}
-	}
-
 	_cubemapCameras->setNodeMask(false);
 	_viewer->getCamera()->setViewMatrixAsLookAt(orieye, oricenter, oriup);
-	if (databasePager)
-	{
-		databasePager->resume();
-	}
+
 	osg::Matrix viewmat;
 	viewmat.makeLookAt(orieye, oricenter, oriup);
 	_viewer->setCameraManipulator(_manip.get(), false);
@@ -709,6 +692,11 @@ void SkyViewFactorEventHandler::computeMouseIntersection(osgUtil::LineSegmentInt
 	_viewer->getCamera()->getViewMatrixAsLookAt(orieye, oricenter, oriup);
 	if (_cubemap2fisheyeCamera && _cubemap2fisheyeCamera.valid())
 	{
+			for (size_t i = 0; i < _cubemapCameras->getNumChildren(); i++)
+			{
+					CameraBuffer* cameraBuffer = (CameraBuffer*)_cubemapCameras->getChild(i);
+					osgDB::writeImageFile(*cameraBuffer->_image, cameraBuffer->_name + ".png");
+			}
 		double svf = SVFComputeTools::calSVF(_cubemap2fisheyeCamera->_image, false);
 		printf("SVF=%f\n", svf);
 		std::stringstream ss;

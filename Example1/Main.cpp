@@ -2,7 +2,6 @@
 #ifdef _WIN32 || WIN32 
 #include <Windows.h>
 #endif
-#include "SVFDatabasePager.h"
 #include "SVFComputeTools.h"
 #include "osg/ShapeDrawable"
 
@@ -37,11 +36,8 @@ int main(int argc, char **argv)
 	 viewer->addEventHandler(new osgViewer::LODScaleHandler);
 
 	viewer->addEventHandler(new SkyViewFactorEventHandler(city, root, manip, viewer));
-	VGEDatabasePager* databasePager = new VGEDatabasePager;
-	databasePager->resume();
-	viewer->getScene()->setDatabasePager(databasePager);
 
-    return viewer->run();
+ return viewer->run();
 }
 
 
