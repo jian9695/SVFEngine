@@ -28,6 +28,10 @@
 #include <osgText/Font>
 #include <osgText/Text>
 #include <iomanip>
+#include "ScreenOverlay.h"
+#include "GrassSolar.h"
+
+typedef void(*OnResultsUpdated)(float, SolarRadiation);
 
 //a cubemap camera
 class CameraBuffer : public osg::Camera
@@ -67,7 +71,7 @@ public:
 	//it contains six cameras looking respectively in the six cubemap directions
 	static osg::Group* createSVFCameras(osg::Node* city);
 	//create node to convert a cubemap set into a fisheye view and then render onto an off-screen _image
-	static osg::Node* cubemap2hemispherical(osg::Group* _cubemapCameras);
+	static RenderSurface* cubemap2hemispherical(osg::Group* _cubemapCameras);
 	//create node to convert a cubemap set into a fisheye view and then render onto the screen
 	static osg::Node* cubemap2hemisphericalHUD(osg::Group* _cubemapCameras);
 	static osg::Node* createTextureRect(std::string texfile);
@@ -83,9 +87,13 @@ class SkyViewFactorEventHandler : public osgGA::GUIEventHandler
 public:
 	//_cubemapCameras: a group of cubemap cameras created from SVFComputeTools
 	//_root: child nodes for showing the point lable and the fisheye HUD are inserted into this parent node
-	SkyViewFactorEventHandler(osg::Node* threeDModel, osg::Group* root, osg::ref_ptr<osgGA::CameraManipulator> manip, osgViewer::Viewer* viewer);
+	SkyViewFactorEventHandler(osg::Node* threeDModel, osg::Group* root, 
+		osg::ref_ptr<osgGA::CameraManipulator> manip, 
+		osgViewer::Viewer* viewer, 
+		OnResultsUpdated resultsCallback);
 	~SkyViewFactorEventHandler();
 	bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa);
+	osg::ref_ptr<RenderSurface> _cubemap2fisheyeCamera;
 private:
 	//compute the mouse-model intersection point; compute SVF at this point; update the fisheye HUD and _text labels
 	void computeMouseIntersection(osgUtil::LineSegmentIntersector* ray);
@@ -93,12 +101,12 @@ private:
 	osg::ref_ptr<osgGA::CameraManipulator> _manip;
 	osg::Group* _root;
 	osg::ref_ptr<PointRenderer> _pointRenderer;
-	osg::ref_ptr<CameraBuffer> _cubemap2fisheyeCamera;
 	osg::ref_ptr<osg::Image> _screenshotTextImg;
 	osgViewer::Viewer* _viewer;
 	osgText::Text* _text;
 	void printfVec3d(osg::Vec3d v);
 	void printfVec3(osg::Vec3 v);
 	osg::ref_ptr<osg::Group> _renderGroup;
+	OnResultsUpdated _resultsCallback;
 };
 

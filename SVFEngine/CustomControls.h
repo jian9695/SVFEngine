@@ -482,7 +482,7 @@ namespace CustomControls
     class HSliderControl : public Control
     {
     public:
-        HSliderControl( float min = 0.0f, float max = 100.0f, float value = 50.0f, ControlEventHandler* handler =0L );
+        HSliderControl( float min = 0.0f, float max = 100.0f, float value = 50.0f, ControlEventHandler* handler =0L);
 
         /** dtor */
         virtual ~HSliderControl() { }
@@ -507,7 +507,6 @@ namespace CustomControls
 
     private:
         float _min, _max, _value;
-        bool _isLocked;
     };
 
     /**

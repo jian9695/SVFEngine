@@ -1268,6 +1268,7 @@ ImageControl::draw( const ControlContext& cx )
 }
 
 // ---------------------------------------------------------------------------
+static HSliderControl* _dragObject = nullptr;
 
 HSliderControl::HSliderControl( float min, float max, float value, ControlEventHandler* handler) :
 _min(min),
@@ -1400,8 +1401,15 @@ HSliderControl::handle( const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapte
 {
     if( !visible() || !parentIsVisible())
         return false;
-
-    if ( ea.getEventType() == osgGA::GUIEventAdapter::DRAG )
+    if (ea.getEventType() == osgGA::GUIEventAdapter::PUSH && ea.getButtonMask() == osgGA::GUIEventAdapter::LEFT_MOUSE_BUTTON)
+    {
+      _dragObject = this;
+    }
+    else if (ea.getEventType() == osgGA::GUIEventAdapter::RELEASE && ea.getButtonMask() == osgGA::GUIEventAdapter::RIGHT_MOUSE_BUTTON)
+    {
+      _dragObject = nullptr;
+    }
+    else if (ea.getEventType() == osgGA::GUIEventAdapter::DRAG && _dragObject == this)
     {
         float canvasX = ea.getX() - cx._view->getCamera()->getViewport()->x();
         float relX = canvasX - _renderPos.x();

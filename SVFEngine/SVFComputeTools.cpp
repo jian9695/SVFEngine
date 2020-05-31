@@ -1,6 +1,7 @@
 #include "SVFComputeTools.h"
 #include <osg/ComputeBoundsVisitor>
 #include <iomanip>
+
 CameraBuffer::CameraBuffer() 
 	:osg::Camera()
 {
@@ -67,21 +68,21 @@ CameraBuffer * CameraBuffer::create(int w, int h, osg::Vec3d dir, osg::Vec3d up,
 CameraBuffer * CameraBuffer::createSlave(int w, int h, osg::GraphicsContext * context)
 {
 	CameraBuffer* camera = new CameraBuffer;
-	if (!context)
-	{
-		osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits;
-		traits->x = 0;
-		traits->y = 0;
-		traits->width = w;
-		traits->height = h;
-		traits->windowDecoration = true; // window border etc.
-		traits->doubleBuffer = true;
-		traits->sharedContext = 0;
-		traits->vsync = false;
-		context = osg::GraphicsContext::createGraphicsContext(traits.get());
-	}
+	//if (!context)
+	//{
+	//	osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits;
+	//	traits->x = 0;
+	//	traits->y = 0;
+	//	traits->width = w;
+	//	traits->height = h;
+	//	traits->windowDecoration = true; // window border etc.
+	//	traits->doubleBuffer = true;
+	//	traits->sharedContext = 0;
+	//	traits->vsync = false;
+	//	context = osg::GraphicsContext::createGraphicsContext(traits.get());
+	//}
 
-	camera->setViewport(0, 0, w, h);
+	//camera->setViewport(0, 0, w, h);
 	camera->setGraphicsContext(context);
 	camera->setupBuffer(w, h, osg::Vec3d(1, 0, 0), osg::Vec3d(1, 0, 0), "");
 
@@ -140,37 +141,12 @@ osg::Group * SVFComputeTools::createSVFCameras(osg::Node * city)
 	return cameras;
 }
 
-osg::Node * SVFComputeTools::cubemap2hemispherical(osg::Group * svfCameraBuffers)
+RenderSurface* SVFComputeTools::cubemap2hemispherical(osg::Group * svfCameraBuffers)
 {
 	//osg::TextureCubeMap* cubemap = SkyDome::loadCubeMapTextures("E:/OpenSceneGraphSVF/OpenSceneGraphSVF/images_WEIHAI", ".png");
 	enum { POS_X, NEG_X, POS_Y, NEG_Y, POS_Z, NEG_Z };
 
-
-	osg::Geode* geode = new osg::Geode;
-	osg::ref_ptr<osg::Geometry> geom = new osg::Geometry();
-	osg::Vec3Array* vertices = new osg::Vec3Array();
-	osg::Vec3Array* normals = new osg::Vec3Array();
-	vertices->push_back(osg::Vec3(-1, -1, -1));
-	vertices->push_back(osg::Vec3(-1, 1, -1));
-	vertices->push_back(osg::Vec3(1, -1, -1));
-	vertices->push_back(osg::Vec3(1, -1, -1));
-	vertices->push_back(osg::Vec3(-1, 1, -1));
-	vertices->push_back(osg::Vec3(1, 1, -1));
-	normals->push_back(osg::Vec3(0, 0, 1));
-	geom->setVertexArray(vertices);
-	geom->setNormalArray(normals);
-	geom->setNormalBinding(osg::Geometry::BIND_OVERALL);
-	geode->getOrCreateStateSet()->setMode(GL_CULL_FACE,
-		osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
-	//geom->setInitialBound(osg::BoundingBox(-1000000, -1000000, -1000000, 1000000, 1000000, 1000000));
-	//geom->setNormalBinding(osg::Geometry::BIND_OVERALL);
-	geom->setCullingActive(false);
-	geode->setCullingActive(false);
-	geom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::TRIANGLES, 0, 6));
-	geode->addDrawable(geom.get());
-	geode->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
-
-	osg::TextureCubeMap* cubeMap = new osg::TextureCubeMap;
+	osg::ref_ptr<osg::TextureCubeMap> cubeMap = new osg::TextureCubeMap;
 	cubeMap->setInternalFormat(GL_RGBA);
 
 	cubeMap->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR_MIPMAP_LINEAR);
@@ -184,9 +160,6 @@ osg::Node * SVFComputeTools::cubemap2hemispherical(osg::Group * svfCameraBuffers
 	cubeMap->setImage(osg::TextureCubeMap::POSITIVE_Y, ((CameraBuffer*)svfCameraBuffers->getChild(NEG_Z))->_image.get());
 	cubeMap->setImage(osg::TextureCubeMap::NEGATIVE_Z, ((CameraBuffer*)svfCameraBuffers->getChild(NEG_Y))->_image.get());
 	cubeMap->setImage(osg::TextureCubeMap::POSITIVE_Z, ((CameraBuffer*)svfCameraBuffers->getChild(POS_Y))->_image.get());
-	geode->getOrCreateStateSet()->setTextureAttributeAndModes(0, cubeMap, osg::StateAttribute::ON);
-
-	osg::Program* program = new osg::Program;
 
 	char vertexSource[] =
 		"void main(void)\n"
@@ -194,6 +167,7 @@ osg::Node * SVFComputeTools::cubemap2hemispherical(osg::Group * svfCameraBuffers
 		"   gl_TexCoord[0] = vec4(gl_Vertex.x,gl_Vertex.y,0,1.0);\n"
 		"   gl_Position   = vec4(gl_Vertex.x,gl_Vertex.y,0,1);\n"
 		"}\n";
+
 	char fragmentSource[] =
 		"uniform vec4 color;\n"
 		"uniform float alpha;\n"
@@ -234,16 +208,17 @@ osg::Node * SVFComputeTools::cubemap2hemispherical(osg::Group * svfCameraBuffers
 		"    }\n"
 		"}\n";
 
-	//geode->setCullCallback(new GeomCB);
-	program->setName("sky_dome_shader");
-	program->addShader(new osg::Shader(osg::Shader::VERTEX, vertexSource));
-	program->addShader(new osg::Shader(osg::Shader::FRAGMENT, fragmentSource));
-	geode->getOrCreateStateSet()->setAttributeAndModes(program, osg::StateAttribute::ON);
-	geode->getOrCreateStateSet()->addUniform(new osg::Uniform("uEnvironmentMap", 0));
-	geode->getOrCreateStateSet()->addUniform(new osg::Uniform("rotateAngle", 0.0f));
-	geode->getOrCreateStateSet()->addUniform(new osg::Uniform("alpha", 0.0f));
-
-	return geode;
+	OverlayRenderSurface* fisheye = new OverlayRenderSurface(512, 512, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, true);
+	fisheye->Overlay()->setProgramName("fisheye");
+	//memcpy(updateParticlesSurfaceStorage->Image()->data(), particlesMap->data(), imageSize);
+	//Store the updated particles
+	fisheye->Overlay()->SetTextureLayer(cubeMap.get(), 0);
+	fisheye->Overlay()->SetVertexShader(vertexSource);
+	fisheye->Overlay()->SetFragmentShader(fragmentSource);
+	fisheye->getOrCreateStateSet()->addUniform(new osg::Uniform("uEnvironmentMap", 0));
+	fisheye->getOrCreateStateSet()->addUniform(new osg::Uniform("rotateAngle", 0.0f));
+	fisheye->getOrCreateStateSet()->addUniform(new osg::Uniform("alpha", 0.0f));
+  return fisheye;
 }
 
 osg::Node * SVFComputeTools::cubemap2hemisphericalHUD(osg::Group * svfCameraBuffers)
@@ -356,18 +331,18 @@ osg::Node * SVFComputeTools::cubemap2hemisphericalHUD(osg::Group * svfCameraBuff
 	geode->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
 	//g_pPanoState = geode->getOrCreateStateSet();
 
-	osg::Projection * HUDProjectionMatrix = new osg::Projection;
+	//osg::Projection * HUDProjectionMatrix = new osg::Projection;
 
-	HUDProjectionMatrix->setMatrix(osg::Matrix::ortho2D(0, 512, 0, 512));
-	osg::MatrixTransform* HUDModelViewMatrix = new osg::MatrixTransform;
-	HUDModelViewMatrix->setMatrix(osg::Matrix::translate(512, 512, 0));
-	// above it in the scene graph:
-	HUDModelViewMatrix->setReferenceFrame(osg::Transform::ABSOLUTE_RF);
+	//HUDProjectionMatrix->setMatrix(osg::Matrix::ortho2D(0, 512, 0, 512));
+	//osg::MatrixTransform* HUDModelViewMatrix = new osg::MatrixTransform;
+	//HUDModelViewMatrix->setMatrix(osg::Matrix::translate(512, 512, 0));
+	//// above it in the scene graph:
+	//HUDModelViewMatrix->setReferenceFrame(osg::Transform::ABSOLUTE_RF);
 
-	HUDProjectionMatrix->addChild(HUDModelViewMatrix);
-	HUDModelViewMatrix->addChild(geode);
+	//HUDProjectionMatrix->addChild(HUDModelViewMatrix);
+	//HUDModelViewMatrix->addChild(geode);
 
-	return HUDProjectionMatrix;
+	return geode;
 	//return geode;
 }
 
@@ -583,12 +558,14 @@ osg::Camera* SVFComputeTools::createHUDText(osgText::Text*& _text, osg::Vec4 col
 	return camera;
 }
 
-SkyViewFactorEventHandler::SkyViewFactorEventHandler(osg::Node* threeDModel, osg::Group * root, osg::ref_ptr<osgGA::CameraManipulator> manip, osgViewer::Viewer * viewer)
+SkyViewFactorEventHandler::SkyViewFactorEventHandler(osg::Node* threeDModel, osg::Group * root, osg::ref_ptr<osgGA::CameraManipulator> manip, 
+	osgViewer::Viewer * viewer,
+	OnResultsUpdated resultsCallback)
 {
 	_viewer = viewer;
 	_manip = manip;
 	_root = root;
-
+	_resultsCallback = resultsCallback;
 
 	_renderGroup = new osg::Group;
 	_root->addChild(_renderGroup.get());
@@ -610,15 +587,26 @@ SkyViewFactorEventHandler::SkyViewFactorEventHandler(osg::Node* threeDModel, osg
 	root->addChild(cubemap2fisheyeHUD.get());
 
 	//create a node to transform a cubemap into a fisheye view and then render onto an off-screen image for svf calculation
-	_cubemap2fisheyeCamera = CameraBuffer::createSlave(512, 512, contexts[0]);
-	osg::ref_ptr<osg::Node> cubemap2fisheye = SVFComputeTools::cubemap2hemispherical(_cubemapCameras);
-	_cubemap2fisheyeCamera->addChild(cubemap2fisheye.get());
-	_viewer->addSlave(_cubemap2fisheyeCamera.get(), false);
+	//_cubemap2fisheyeCamera = CameraBuffer::createSlave(512, 512, contexts[0]);
+	_cubemap2fisheyeCamera = SVFComputeTools::cubemap2hemispherical(_cubemapCameras);
+	//_cubemap2fisheyeCamera->addChild(cubemap2fisheye.get());
+	//_viewer->addSlave(_cubemap2fisheyeCamera.get(), false);
 	_cubemap2fisheyeCamera->setCullingActive(false);
 
 	//create text label for displaying svf value
 	osg::ref_ptr<osg::Camera> hudCamera = SVFComputeTools::createHUDText(_text);
 	_renderGroup->addChild(hudCamera.get());
+	root->addChild(_cubemap2fisheyeCamera.get());
+
+	for (size_t i = 0; i < _cubemapCameras->getNumChildren(); i++)
+	{
+		((osg::Camera*)_cubemapCameras->getChild(i))->setRenderOrder(osg::Camera::PRE_RENDER, i);
+	}
+	_cubemap2fisheyeCamera->setRenderOrder(osg::Camera::PRE_RENDER, _cubemapCameras->getNumChildren());
+
+	//osg::ref_ptr<ScreenOverlay> overlay = new ScreenOverlay();
+	//overlay->setProgramName("particlesOverlay");
+	//overlay->SetTextureLayer(_cubemap2fisheyeCamera->Texture().get(), 0);
 }
 SkyViewFactorEventHandler::~SkyViewFactorEventHandler()
 {
@@ -647,7 +635,7 @@ void SkyViewFactorEventHandler::computeMouseIntersection(osgUtil::LineSegmentInt
 
 	osg::Vec3d cureye = ray->getFirstIntersection().getWorldIntersectPoint() + _dir * 50;
 
-	_viewer->setCameraManipulator(NULL, false);
+	//_viewer->setCameraManipulator(NULL, false);
 	_viewer->frame();
 	//while (_viewer->getDatabasePager()->getRequestsInProgress())
 	//{
@@ -687,7 +675,7 @@ void SkyViewFactorEventHandler::computeMouseIntersection(osgUtil::LineSegmentInt
 
 	osg::Matrix viewmat;
 	viewmat.makeLookAt(orieye, oricenter, oriup);
-	_viewer->setCameraManipulator(_manip.get(), false);
+	//_viewer->setCameraManipulator(_manip.get(), false);
 	_manip->setByInverseMatrix(viewmat);
 	_viewer->getCamera()->getViewMatrixAsLookAt(orieye, oricenter, oriup);
 	if (_cubemap2fisheyeCamera && _cubemap2fisheyeCamera.valid())
@@ -697,8 +685,10 @@ void SkyViewFactorEventHandler::computeMouseIntersection(osgUtil::LineSegmentInt
 					CameraBuffer* cameraBuffer = (CameraBuffer*)_cubemapCameras->getChild(i);
 					osgDB::writeImageFile(*cameraBuffer->_image, cameraBuffer->_name + ".png");
 			}
-		double svf = SVFComputeTools::calSVF(_cubemap2fisheyeCamera->_image, false);
+			osgDB::writeImageFile(*_cubemap2fisheyeCamera->Image(), "fisheye.png");
+		double svf = SVFComputeTools::calSVF(_cubemap2fisheyeCamera->Image().get(), false);
 		printf("SVF=%f\n", svf);
+		_resultsCallback(svf, SolarRadiation());
 		std::stringstream ss;
 		ss << std::setprecision(3) << "SVF = " << svf;
 		_text->setText(ss.str());
@@ -707,6 +697,18 @@ void SkyViewFactorEventHandler::computeMouseIntersection(osgUtil::LineSegmentInt
 
 bool SkyViewFactorEventHandler::handle(const osgGA::GUIEventAdapter & ea, osgGA::GUIActionAdapter & aa)
 {
+	if (ea.getEventType() == osgGA::GUIEventAdapter::KEYDOWN)
+		return false;
+	if (ea.getEventType() == osgGA::GUIEventAdapter::KEYUP)
+		return false;
+	if (ea.getEventType() == osgGA::GUIEventAdapter::DOUBLECLICK)
+		return false;
+	if (ea.getEventType() == osgGA::GUIEventAdapter::DRAG)
+		return false;
+	if (ea.getEventType() == osgGA::GUIEventAdapter::FRAME)
+		return false;
+	if (ea.getEventType() == osgGA::GUIEventAdapter::FRAME)
+		return false;
 	osgViewer::Viewer* viewer = dynamic_cast<osgViewer::Viewer*>(&aa);
 	if (!viewer) 
 		return false;
@@ -714,16 +716,9 @@ bool SkyViewFactorEventHandler::handle(const osgGA::GUIEventAdapter & ea, osgGA:
 	viewer->getCamera()->getViewMatrixAsLookAt(orieye, oricenter, oriup);
 	osgViewer::Renderer *render = dynamic_cast<osgViewer::Renderer *>(aa.asView()->getCamera()->getRenderer());
 	osgUtil::SceneView *sceneView = render->getSceneView(0);
-
 	sceneView->getRenderInfo().getState()->setCheckForGLErrors(osg::State::NEVER_CHECK_GL_ERRORS);
-	if (ea.getEventType() == osgGA::GUIEventAdapter::KEYDOWN) {
-	}
-	if (ea.getEventType() == osgGA::GUIEventAdapter::KEYUP) {
-	}
-	if (ea.getEventType() == osgGA::GUIEventAdapter::DOUBLECLICK) {
-	}
-
-	if ((ea.getModKeyMask() & ea.MODKEY_CTRL) != 0 && ea.getEventType() == osgGA::GUIEventAdapter::PUSH)
+	if (ea.getButtonMask() == osgGA::GUIEventAdapter::LEFT_MOUSE_BUTTON && (ea.getModKeyMask() & ea.MODKEY_CTRL) && ea.getEventType() == osgGA::GUIEventAdapter::PUSH)
+	//if ((ea.getModKeyMask() & ea.MODKEY_CTRL) != 0 && ea.getEventType() == osgGA::GUIEventAdapter::PUSH)
 	{
 		osg::ref_ptr<osgUtil::LineSegmentIntersector> ray = new osgUtil::LineSegmentIntersector(osgUtil::Intersector::PROJECTION, ea.getXnormalized(), ea.getYnormalized());
 		osgUtil::IntersectionVisitor visitor(ray);
