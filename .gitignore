@@ -13,3 +13,9 @@
 /lib/SVFEngine.lib
 /Release
 /ReleaseD
+*.dll
+*.png
+*.ipdb
+*.iobj
+*.exe
+*.lib

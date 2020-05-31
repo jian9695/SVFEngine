@@ -184,16 +184,6 @@ bool frustrumIntersects(osg::BoundingBox frustrum, osg::BoundingSphere bs)
 
 osg::Vec3d GrassSolar::solarAngle2Vector(double alt, double azimuth)
 {
-		//osg::Vec3 vsun(0, 1, 0);
-		//osg::Vec3 horizontal(1, 0, 0);
-		//osg::Matrix matSun = osg::Matrix::rotate(azimuth, osg::Vec3(0, 0, -1));
-		//vsun = vsun * matSun;
-		//horizontal = horizontal * matSun;
-		//matSun = osg::Matrix::rotate(alt, horizontal);
-		//vsun = vsun * matSun;
-		//vsun.normalize();
-		////vsun.y() *= -1;
-		//return vsun;
 		osg::Vec3d lightDir;
 		lightDir.z() = cos(osg::DegreesToRadians(90.0 - alt));
 		double projectedLenghOnXY = cos(osg::DegreesToRadians(alt));

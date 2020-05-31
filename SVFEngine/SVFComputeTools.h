@@ -33,33 +33,43 @@
 
 typedef void(*OnResultsUpdated)(float, SolarRadiation);
 
-//a cubemap camera
-class CameraBuffer : public osg::Camera
+class CubemapSurface : public RenderSurface, public osg::NodeCallback
 {
 public:
-	osg::ref_ptr<osg::Texture2D> _texture;
-	osg::ref_ptr<osg::Image> _image;
-	std::string _name;
 	osg::Vec3d _pos;//position of camera
 	osg::Vec3d _dir;//viewing direction of camera
 	osg::Vec3d _up;//the _up vector for use in building a view matrix
-	CameraBuffer();
-	void setupBuffer(int w, int h, osg::Vec3d _dir, osg::Vec3d _up, std::string _name);
-	void update();
-	//w: width of camera buffer
-	//h: height of camera buffer
-	static CameraBuffer* create(int w, int h, osg::Vec3d dir, osg::Vec3d up, std::string name);
-	static CameraBuffer* createSlave(int w, int h, osg::GraphicsContext* context = NULL);
-};
+  CubemapSurface(int width, int height, GLenum internalFormat, GLenum sourceFormat, GLenum sourceType, bool allocateImage,
+	 osg::Vec3d dir, osg::Vec3d up, std::string name) :
+		RenderSurface(width, height, internalFormat, sourceFormat, sourceType, allocateImage),
+		_dir(dir), _up(up)
+	{
+		osg::Camera::setName(name);
+		addCullCallback(this);
+	}
 
-//callback for updating cubemap camera matrix before rendering
-class CameraCB : public osg::NodeCallback
-{
-public:
-	osg::Group* _cubemapCameras;
-	//_cubemapCameras is a group of cubemap cameras created from SVFComputeTools
-	CameraCB(osg::Group* svfCameraBuffers);
-	virtual void operator()(osg::Node* node, osg::NodeVisitor* nv);
+	void update()
+	{
+		osg::Matrix localOffset;
+		localOffset.makeLookAt(_pos, _pos + _dir * 100, _up);
+		osg::Matrix viewMatrix = localOffset;
+		setReferenceFrame(osg::Camera::ABSOLUTE_RF);
+		float nearDist = 0.1;
+		setComputeNearFarMode(osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR);
+		//setProjectionMatrixAsFrustum(-nearDist, nearDist, -nearDist, nearDist, 0.01, 1000.0);
+		setProjectionMatrixAsPerspective(90, 1.0, 0.01, 1000000);
+		setViewMatrix(viewMatrix);
+		setClearColor(osg::Vec4(0, 0, 0, 0));
+	}
+
+	virtual void operator()(osg::Node* node, osg::NodeVisitor* nv)
+	{
+		if (nv->getVisitorType() == osg::NodeVisitor::CULL_VISITOR)
+		{
+			update();
+		}
+		osg::NodeCallback::traverse(node, nv);
+	}
 };
 
 class SVFComputeTools
@@ -73,14 +83,13 @@ public:
 	//create node to convert a cubemap set into a fisheye view and then render onto an off-screen _image
 	static RenderSurface* cubemap2hemispherical(osg::Group* _cubemapCameras);
 	//create node to convert a cubemap set into a fisheye view and then render onto the screen
-	static osg::Node* cubemap2hemisphericalHUD(osg::Group* _cubemapCameras);
 	static osg::Node* createTextureRect(std::string texfile);
 	//calculate SVF from a fisheye _image
 	//Lambert's cosine law will be applied when applyLambert = true
 	static double calSVF(osg::Image* img, bool applyLambert = false);
-	//create a _text node to display SVF value
-	static osg::Camera* createHUDText(osgText::Text*& _text,osg::Vec4 color = osg::Vec4(0,0,0,1));
+	static SolarRadiation calSolar(osg::Image* img, SolarParam* solarParam);
 };
+
 //class for handling interactive 3D picking, SVF calculation and result displaying
 class SkyViewFactorEventHandler : public osgGA::GUIEventHandler
 {
@@ -89,7 +98,7 @@ public:
 	//_root: child nodes for showing the point lable and the fisheye HUD are inserted into this parent node
 	SkyViewFactorEventHandler(osg::Node* threeDModel, osg::Group* root, 
 		osg::ref_ptr<osgGA::CameraManipulator> manip, 
-		osgViewer::Viewer* viewer, 
+		osgViewer::Viewer* viewer, SolarParam* solarParam,
 		OnResultsUpdated resultsCallback);
 	~SkyViewFactorEventHandler();
 	bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa);
@@ -103,10 +112,10 @@ private:
 	osg::ref_ptr<PointRenderer> _pointRenderer;
 	osg::ref_ptr<osg::Image> _screenshotTextImg;
 	osgViewer::Viewer* _viewer;
-	osgText::Text* _text;
 	void printfVec3d(osg::Vec3d v);
 	void printfVec3(osg::Vec3 v);
 	osg::ref_ptr<osg::Group> _renderGroup;
 	OnResultsUpdated _resultsCallback;
+	SolarParam* _solarParam;
 };
 

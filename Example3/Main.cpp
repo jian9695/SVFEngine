@@ -67,8 +67,12 @@ CustomControls::ImageControl* s_imageControl = 0L;
 
 std::map<std::string, CustomControls::Control*> m_controls;
 osg::ref_ptr<CustomControls::VBox> m_parametersControl;
-osg::ref_ptr<CustomControls::VBox> m_resultsControl;
-osg::ref_ptr <CustomControls::LabelControl > m_svfLabel;
+osg::ref_ptr<CustomControls::VBox> m_fisheyeControl;
+osg::ref_ptr<CustomControls::VBox> m_resultLabelsControl = new CustomControls::VBox();
+osg::ref_ptr <CustomControls::LabelControl> m_svfLabel;
+osg::ref_ptr <CustomControls::LabelControl> m_globalRadLabel;
+osg::ref_ptr <CustomControls::LabelControl> m_beamRadLabel;
+osg::ref_ptr <CustomControls::LabelControl> m_diffuseRadLabel;
 
 class ParamControlBase : public CustomControls::HBox
 {
@@ -111,32 +115,20 @@ std::string PadRight(std::string str, const size_t num, const char paddingChar =
   return str;
 }
 
-std::string Value2String(float value, int isInteger = false)
+std::string Value2String(float value, int precision)
 {
-  //bool isInt = (floor(value) == value);
   std::stringstream buf;
-  std::string str = "";
-  if (isInteger)
-  {
-    buf << (int)value;
-    str = buf.str();
-  }
-  else
-  {
-    buf.precision(2);
-    buf << std::fixed << value;
-    str = buf.str();
-  }
-  return str;
+  buf.precision(precision);
+  buf << std::fixed << value;
+  return buf.str();
 }
 
 void ResultsUpdated(float svf, SolarRadiation rad)
 {
-  m_svfLabel->setText("SVF: " + Value2String(svf));
-  //m_svfLabel = new CustomControls::LabelControl("SVF:");
-  //osg::ref_ptr <CustomControls::LabelControl> globalRadLabel = new CustomControls::LabelControl("Global radiation:");
-  //osg::ref_ptr <CustomControls::LabelControl> beamRadLabel = new CustomControls::LabelControl("Beam radiation:");
-  //osg::ref_ptr <CustomControls::LabelControl> DiffuseRadLabel = new CustomControls::LabelControl("Diffuse radiation:");
+  m_svfLabel->setText("SVF: " + Value2String(svf, 3));
+  m_globalRadLabel->setText("Global radiation: " + Value2String(rad.global, 3));
+  m_beamRadLabel->setText("Beam radiation: " + Value2String(rad.beam, 3));
+  m_diffuseRadLabel->setText("Diffuse radiation: " + Value2String(rad.diffuse, 3));
 }
 
 class ParamControl : public ParamControlBase, public CustomControls::ControlEventHandler
@@ -313,7 +305,11 @@ private:
     }
     else if (m_name == "ToggleResults")
     {
-      m_resultsControl->setNodeMask(value);
+      m_resultLabelsControl->setNodeMask(value);
+    }
+    else if (m_name == "ToggleFisheye")
+    {
+      m_fisheyeControl->setNodeMask(value);
     }
   }
 };
@@ -330,8 +326,10 @@ void createControls(CustomControls::ControlCanvas* cs)
   osg::ref_ptr<CustomControls::VBox> togglesControl = new CustomControls::VBox();
   osg::ref_ptr<CustomControls::HBox> toggleParameters = new ParamControl("ToggleParameters", "Toggle Hide/Show Parameters", true);
   osg::ref_ptr<CustomControls::HBox> toggleResults = new ParamControl("ToggleResults", "Toggle Hide/Show Results", true);
+  osg::ref_ptr<CustomControls::HBox> toggleFisheye = new ParamControl("ToggleFisheye", "Toggle Hide/Show Fisheye", true);
   togglesControl->addControl(toggleParameters.get());
   togglesControl->addControl(toggleResults.get());
+  togglesControl->addControl(toggleFisheye.get());
   togglesControl->setBackColor(backgroundColor);
   togglesControl->setBorderColor(borderColor);
 
@@ -353,23 +351,31 @@ void createControls(CustomControls::ControlCanvas* cs)
   m_parametersControl->addControl(elevSlider.get());
   m_parametersControl->addControl(linkieSlider.get());
 
-  m_resultsControl = new CustomControls::VBox();
-  m_resultsControl->setBackColor(backgroundColor);
-  m_resultsControl->setBorderColor(borderColor);
-  m_svfLabel = new CustomControls::LabelControl("SVF:");
-  osg::ref_ptr <CustomControls::LabelControl> globalRadLabel = new CustomControls::LabelControl("Global radiation:");
-  osg::ref_ptr <CustomControls::LabelControl> beamRadLabel = new CustomControls::LabelControl("Beam radiation:");
-  osg::ref_ptr <CustomControls::LabelControl> DiffuseRadLabel = new CustomControls::LabelControl("Diffuse radiation:");
+  m_resultLabelsControl = new CustomControls::VBox();
+  m_resultLabelsControl->setBackColor(backgroundColor);
+  m_resultLabelsControl->setBorderColor(borderColor);
+
+  osg::Vec4 resultFontColor(1, 1, 0, 1);
+  m_svfLabel = new CustomControls::LabelControl("SVF:", resultFontColor, 26);
+  m_globalRadLabel = new CustomControls::LabelControl("Global radiation:", resultFontColor, 26);
+  m_beamRadLabel = new CustomControls::LabelControl("Beam radiation:", resultFontColor, 26);
+  m_diffuseRadLabel = new CustomControls::LabelControl("Diffuse radiation:", resultFontColor, 26);
+
+  m_resultLabelsControl->addControl(m_svfLabel.get());
+  m_resultLabelsControl->addControl(m_globalRadLabel.get());
+  m_resultLabelsControl->addControl(m_beamRadLabel.get());
+  m_resultLabelsControl->addControl(m_diffuseRadLabel.get());
+
+  m_fisheyeControl = new CustomControls::VBox();
+  //m_fisheyeControl->setBackColor(backgroundColor);
+  m_fisheyeControl->setBorderColor(borderColor);
   osg::ref_ptr<CustomControls::ImageControl> fishEyeImg = new CustomControls::ImageControl(m_skyViewHandler->_cubemap2fisheyeCamera->Texture());
-  m_resultsControl->addControl(m_svfLabel.get());
-  m_resultsControl->addControl(globalRadLabel.get());
-  m_resultsControl->addControl(beamRadLabel.get());
-  m_resultsControl->addControl(DiffuseRadLabel.get());
-  m_resultsControl->addControl(fishEyeImg.get());
+  m_fisheyeControl->addControl(fishEyeImg.get());
 
   ul->addControl(togglesControl.get());
   ul->addControl(m_parametersControl.get());
-  ul->addControl(m_resultsControl.get());
+  ul->addControl(m_resultLabelsControl.get());
+  ul->addControl(m_fisheyeControl.get());
 
   cs->addControl(ul.get());
 }
@@ -616,8 +622,41 @@ void addParks(Map* map)
   }
 }
 
+osg::Vec2 spherical2image(double alt, double azimuth)
+{
+  osg::Vec3d light = GrassSolar::solarAngle2Vector(alt, azimuth);
+
+  double radius = (90.0 - alt) / 90.0 * 0.5;
+  double theta = azimuth - 90; 
+  if (theta < 0)
+    theta += 360;
+  theta = osg::DegreesToRadians(theta);
+  double x = radius * cos(theta);
+  double y = radius * sin(theta);
+  x += 0.5;
+  y += 0.5;
+  printf("(%f,%f), (%f,%f), (%f,%f)\n", alt, azimuth, light.x(), light.y(), x, y);
+  return osg::Vec2(x, y);
+}
+
 int main(int argc, char** argv)
 {
+  spherical2image(0, 0);
+  //spherical2image(10, 0);
+  //spherical2image(20, 0);
+  //spherical2image(30, 0);
+  //spherical2image(45, 0);
+  //spherical2image(60, 0);
+  //spherical2image(80, 0);
+  //spherical2image(90, 0);
+
+  spherical2image(0, 45);
+  spherical2image(0, 180);
+  spherical2image(0, 270);
+  spherical2image(45, 0);
+  spherical2image(45, 45);
+  spherical2image(45, 180);
+  spherical2image(45, 270);
   osg::ArgumentParser arguments(&argc, argv);
   osgViewer::Viewer* viewer = new osgViewer::Viewer(arguments);
   viewer->setUpViewAcrossAllScreens();
@@ -655,7 +694,7 @@ int main(int argc, char** argv)
     -71.0763, 42.34425, 0,   // longitude, latitude, altitude
     24.261, -21.6, 3450.0), // heading, pitch, range
     5.0);                    // duration
-  m_skyViewHandler = new SkyViewFactorEventHandler(mapNode, root, manip, viewer, ResultsUpdated);
+  m_skyViewHandler = new SkyViewFactorEventHandler(mapNode, root, manip, viewer, &m_solarParam, ResultsUpdated);
   // create a surface to house the controls
   CustomControls::ControlCanvas* cs = CustomControls::ControlCanvas::getOrCreate(viewer);
 
