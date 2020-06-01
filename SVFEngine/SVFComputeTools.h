@@ -39,6 +39,7 @@ public:
 	osg::Vec3d _pos;//position of camera
 	osg::Vec3d _dir;//viewing direction of camera
 	osg::Vec3d _up;//the _up vector for use in building a view matrix
+	osg::Matrixd _viewProjMatrix;
   CubemapSurface(int width, int height, GLenum internalFormat, GLenum sourceFormat, GLenum sourceType, bool allocateImage,
 	 osg::Vec3d dir, osg::Vec3d up, std::string name) :
 		RenderSurface(width, height, internalFormat, sourceFormat, sourceType, allocateImage),
@@ -60,6 +61,7 @@ public:
 		setProjectionMatrixAsPerspective(90, 1.0, 0.01, 1000000);
 		setViewMatrix(viewMatrix);
 		setClearColor(osg::Vec4(0, 0, 0, 0));
+		_viewProjMatrix = viewMatrix * getProjectionMatrix();
 	}
 
 	virtual void operator()(osg::Node* node, osg::NodeVisitor* nv)
@@ -87,7 +89,7 @@ public:
 	//calculate SVF from a fisheye _image
 	//Lambert's cosine law will be applied when applyLambert = true
 	static double calSVF(osg::Image* img, bool applyLambert = false);
-	static SolarRadiation calSolar(osg::Image* img, SolarParam* solarParam);
+	static SolarRadiation calSolar(osg::Image* img, SolarParam* solarParam, osg::Vec3d pos, osg::Vec3d normal, osg::Node* sceneNode);
 };
 
 //class for handling interactive 3D picking, SVF calculation and result displaying
@@ -106,9 +108,11 @@ public:
 private:
 	//compute the mouse-model intersection point; compute SVF at this point; update the fisheye HUD and _text labels
 	void computeMouseIntersection(osgUtil::LineSegmentIntersector* ray);
+	SolarRadiation calSolar(osg::Vec3d pos, osg::Vec3d normal);
 	osg::ref_ptr<osg::Group> _cubemapCameras;
 	osg::ref_ptr<osgGA::CameraManipulator> _manip;
 	osg::Group* _root;
+	osg::Node* _sceneNode;
 	osg::ref_ptr<PointRenderer> _pointRenderer;
 	osg::ref_ptr<osg::Image> _screenshotTextImg;
 	osgViewer::Viewer* _viewer;
@@ -117,5 +121,6 @@ private:
 	osg::ref_ptr<osg::Group> _renderGroup;
 	OnResultsUpdated _resultsCallback;
 	SolarParam* _solarParam;
+	void Test(SunVector sunVec, osg::Vec3d pos);
 };
 

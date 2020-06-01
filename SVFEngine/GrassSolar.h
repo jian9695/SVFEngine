@@ -153,13 +153,15 @@ struct Stats
 };
 
 //structure of solar vector
-typedef struct
+struct SunVector
 {
 		float time;
 		float azimuth;//azimuth angle
 		float alt; //elevation angle
 		//float x,y,z; //position
-}SunVector;
+		SunVector() {}
+		SunVector(float azimuthAngle, float altAngle) { azimuth = azimuthAngle; alt = altAngle; }
+};
 
 struct SolarTime
 {
@@ -236,8 +238,9 @@ public:
 		GrassSolar() {};
 		~GrassSolar() {};
 
-	 static	double calculateAspect(osg::Vec3d normal);
+	  static double calculateAspect(osg::Vec3d normal);
 		static double calculateSlope(osg::Vec3d normal);
+		static double calAzimuthAngle(double x, double y);
 		static osg::Vec3d solarAngle2Vector(double alt, double azimuth);
 		static std::vector<osg::Vec3d> sunVector2LightDir(std::vector<SunVector>& sunvectors);
 

@@ -6,6 +6,37 @@
 #include <osg/Geode>
 #include <osg/ClampColor>
 
+struct ColorUB4
+{
+	unsigned char _r, _g, _b, _a;
+	ColorUB4(unsigned char r, unsigned char g, unsigned char b, unsigned char a)
+	{
+		_r = r; _g = g; _b = b; _a = a;
+	}
+	ColorUB4(osg::Vec4 color)
+	{
+		_r = (unsigned char)(color.r() * 255);
+		_g = (unsigned char)(color.g() * 255);
+		_b = (unsigned char)(color.b() * 255);
+		_a = (unsigned char)(color.a() * 255);
+	}
+};
+
+struct ColorUB3
+{
+	unsigned char _r, _g, _b;
+	ColorUB3(unsigned char r, unsigned char g, unsigned char b)
+	{
+		_r = r; _g = g; _b = b;
+	}
+	ColorUB3(osg::Vec4 color)
+	{
+		_r = (unsigned char)(color.r() * 255);
+		_g = (unsigned char)(color.g() * 255);
+		_b = (unsigned char)(color.b() * 255);
+	}
+};
+
 class ProgramBinder
 {
 public:

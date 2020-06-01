@@ -55,9 +55,11 @@ SolarParam createSolarParam()
   param.lon = 122.1204;
   param.lat = 37.5131;
   param.day = 183;
-  param.time_step = 0.5;
+  param.time_step = 1;
   param.linke = 3.0;
-  param.day = 183;
+  param.startDay = param.day;
+  param.endDay = param.day;
+  param.isSingleDay = true;
   param.elev = 500;
   return param;
 }
@@ -126,9 +128,11 @@ std::string Value2String(float value, int precision)
 void ResultsUpdated(float svf, SolarRadiation rad)
 {
   m_svfLabel->setText("SVF: " + Value2String(svf, 3));
-  m_globalRadLabel->setText("Global radiation: " + Value2String(rad.global, 3));
-  m_beamRadLabel->setText("Beam radiation: " + Value2String(rad.beam, 3));
-  m_diffuseRadLabel->setText("Diffuse radiation: " + Value2String(rad.diffuse, 3));
+  std::string unit = " [kWh/m2]";
+  rad = rad / 1000;
+  m_globalRadLabel->setText("Global radiation: " + Value2String(rad.global, 3) + unit);
+  m_beamRadLabel->setText("Beam radiation: " + Value2String(rad.beam, 3) + unit);
+  m_diffuseRadLabel->setText("Diffuse radiation: " + Value2String(rad.diffuse, 3) + unit);
 }
 
 class ParamControl : public ParamControlBase, public CustomControls::ControlEventHandler
@@ -270,6 +274,10 @@ private:
       slider->m_slider->setValue(value);
       m_solarParam.elev = value;
     }
+    else if (m_name == "TimeStep")
+    {
+      m_solarParam.time_step = value;
+    }
 
     if (m_isInteger)
       value = intValue;
@@ -341,6 +349,7 @@ void createControls(CustomControls::ControlCanvas* cs)
   osg::ref_ptr<CustomControls::HBox> startDaySlider = new ParamControl("StartDay", PadRight("Start Day", maxLabelLen), 1, 365, m_solarParam.startDay, true);
   osg::ref_ptr<CustomControls::HBox> endDaySlider = new ParamControl("EndDay", PadRight("End Day", maxLabelLen), 1, 365, m_solarParam.endDay, true);
   osg::ref_ptr<CustomControls::HBox> isSingleDayCheck = new ParamControl("SingleDayMode", PadRight("Single Day Mode", maxLabelLen), m_solarParam.isSingleDay);
+  osg::ref_ptr<CustomControls::HBox> timeStepSlider = new ParamControl("TimeStep", PadRight("Time Step (hours)", maxLabelLen), 0.1, 1, m_solarParam.time_step, false);
   osg::ref_ptr<CustomControls::HBox> latSlider = new ParamControl("Latitude", PadRight("Latitude Override", maxLabelLen), -90, 90, m_solarParam.lat, false, true);
   osg::ref_ptr<CustomControls::HBox> elevSlider = new ParamControl("Elevation", PadRight("Elevation Override", maxLabelLen), 0, 9999, m_solarParam.elev, false, true);
   m_parametersControl->addControl(titleLabel.get());
@@ -349,6 +358,7 @@ void createControls(CustomControls::ControlCanvas* cs)
   m_parametersControl->addControl(endDaySlider.get());
   m_parametersControl->addControl(latSlider.get());
   m_parametersControl->addControl(elevSlider.get());
+  m_parametersControl->addControl(timeStepSlider.get());
   m_parametersControl->addControl(linkieSlider.get());
 
   m_resultLabelsControl = new CustomControls::VBox();
@@ -639,9 +649,28 @@ osg::Vec2 spherical2image(double alt, double azimuth)
   return osg::Vec2(x, y);
 }
 
+void calAngles(double x, double y)
+{
+  //double dot = x * 0.0 + y * 1.0;
+  //double angle = acos(dot);
+  //angle = osg::RadiansToDegrees(angle);
+  double x2 = 0.0;
+  double y2 = 1.0;
+  double dot = x * x2 + y * y2;      //# dot product
+  double det = x * y2 - y * x2;      //# determinant
+  double angle = osg::RadiansToDegrees(atan2(det, dot));  //# atan2(y, x) or atan2(sin, cos)
+  if (angle < 0)
+    angle += 360;
+  printf("%f,%f,%f\n", x, y, angle);
+}
 int main(int argc, char** argv)
 {
-  spherical2image(0, 0);
+  //calAngles(1, 0);
+  //calAngles(0, -1);
+  //calAngles(-1, 0);
+  //calAngles(-0.5, 0.5);
+  //calAngles(-0.5, 0.5);
+  //spherical2image(0, 0);
   //spherical2image(10, 0);
   //spherical2image(20, 0);
   //spherical2image(30, 0);
@@ -649,14 +678,13 @@ int main(int argc, char** argv)
   //spherical2image(60, 0);
   //spherical2image(80, 0);
   //spherical2image(90, 0);
-
-  spherical2image(0, 45);
-  spherical2image(0, 180);
-  spherical2image(0, 270);
-  spherical2image(45, 0);
-  spherical2image(45, 45);
-  spherical2image(45, 180);
-  spherical2image(45, 270);
+  //spherical2image(0, 45);
+  //spherical2image(0, 180);
+  //spherical2image(0, 270);
+  //spherical2image(45, 0);
+  //spherical2image(45, 45);
+  //spherical2image(45, 180);
+  //spherical2image(45, 270);
   osg::ArgumentParser arguments(&argc, argv);
   osgViewer::Viewer* viewer = new osgViewer::Viewer(arguments);
   viewer->setUpViewAcrossAllScreens();

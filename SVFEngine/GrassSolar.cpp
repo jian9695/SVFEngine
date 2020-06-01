@@ -194,6 +194,19 @@ osg::Vec3d GrassSolar::solarAngle2Vector(double alt, double azimuth)
 		return lightDir;
 }
 
+//Angle between vector (x,y) and the positive Y axis (0,1) with origin at (0,0)
+double GrassSolar::calAzimuthAngle(double x, double y)
+{
+	double x2 = 0.0;
+	double y2 = 1.0;
+	double dot = x * x2 + y * y2;      //# dot product
+	double det = x * y2 - y * x2;      //# determinant
+	double angle = osg::RadiansToDegrees(atan2(det, dot));  //# atan2(y, x) or atan2(sin, cos)
+	if (angle < 0)
+		angle += 360;
+	return angle;
+}
+
 std::vector<osg::Vec3d> GrassSolar::sunVector2LightDir(std::vector<SunVector>& sunvectors)
 {
 		std::vector<osg::Vec3d> vsuns;
