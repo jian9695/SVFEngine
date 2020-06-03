@@ -133,6 +133,7 @@ void ResultsUpdated(float svf, SolarRadiation rad)
   m_globalRadLabel->setText("Global radiation: " + Value2String(rad.global, 3) + unit);
   m_beamRadLabel->setText("Beam radiation: " + Value2String(rad.beam, 3) + unit);
   m_diffuseRadLabel->setText("Diffuse radiation: " + Value2String(rad.diffuse, 3) + unit);
+  printf("Global: %f\n", rad.global);
 }
 
 class ParamControl : public ParamControlBase, public CustomControls::ControlEventHandler
@@ -649,11 +650,8 @@ osg::Vec2 spherical2image(double alt, double azimuth)
   return osg::Vec2(x, y);
 }
 
-void calAngles(double x, double y)
+double calAngle(double x, double y)
 {
-  //double dot = x * 0.0 + y * 1.0;
-  //double angle = acos(dot);
-  //angle = osg::RadiansToDegrees(angle);
   double x2 = 0.0;
   double y2 = 1.0;
   double dot = x * x2 + y * y2;      //# dot product
@@ -661,30 +659,48 @@ void calAngles(double x, double y)
   double angle = osg::RadiansToDegrees(atan2(det, dot));  //# atan2(y, x) or atan2(sin, cos)
   if (angle < 0)
     angle += 360;
-  printf("%f,%f,%f\n", x, y, angle);
+  return angle;
 }
+
+
+void hemispherical2cartesian(double theta, double rho)
+{
+  double angle = osg::DegreesToRadians(theta);
+  double x = rho * sin(angle);
+  double y = rho * cos(angle);
+  printf("(%f,%f),(%f,%f)\n", theta, rho, x, y);
+}
+
+void cartesian2hemispherical(double x, double y)
+{
+  double rho = sqrt(x * x + y * y);
+  double azimuth = calAngle(x, y);
+  double alt = (1.0 - rho) * 90.0;
+  osg::Vec3d vec3;
+  vec3.z() = cos(osg::DegreesToRadians(90.0 - alt));
+  double projectedLenghOnXY = cos(osg::DegreesToRadians(alt));
+  vec3.y() = projectedLenghOnXY * cos(osg::DegreesToRadians(azimuth));
+  vec3.x() = projectedLenghOnXY * cos(osg::DegreesToRadians(90 - azimuth));
+  vec3.normalize();
+  printf("(%f,%f),(%f,%f,%f)\n", x, y, vec3.x(), vec3.y(), vec3.z());
+}
+
 int main(int argc, char** argv)
 {
-  //calAngles(1, 0);
-  //calAngles(0, -1);
-  //calAngles(-1, 0);
-  //calAngles(-0.5, 0.5);
-  //calAngles(-0.5, 0.5);
-  //spherical2image(0, 0);
-  //spherical2image(10, 0);
-  //spherical2image(20, 0);
-  //spherical2image(30, 0);
-  //spherical2image(45, 0);
-  //spherical2image(60, 0);
-  //spherical2image(80, 0);
-  //spherical2image(90, 0);
-  //spherical2image(0, 45);
-  //spherical2image(0, 180);
-  //spherical2image(0, 270);
-  //spherical2image(45, 0);
-  //spherical2image(45, 45);
-  //spherical2image(45, 180);
-  //spherical2image(45, 270);
+
+  hemispherical2cartesian(0, 1);
+  hemispherical2cartesian(45, 1);
+  hemispherical2cartesian(90, 1);
+  hemispherical2cartesian(180, 1);
+  hemispherical2cartesian(225, 1);
+  hemispherical2cartesian(315, 1);
+
+  cartesian2hemispherical(0, 0);
+  cartesian2hemispherical(0, 1);
+  cartesian2hemispherical(0, -1);
+  cartesian2hemispherical(1, 0);
+  cartesian2hemispherical(-1, 0);
+  cartesian2hemispherical(0, 0.5);
   osg::ArgumentParser arguments(&argc, argv);
   osgViewer::Viewer* viewer = new osgViewer::Viewer(arguments);
   viewer->setUpViewAcrossAllScreens();

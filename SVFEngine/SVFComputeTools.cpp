@@ -50,6 +50,14 @@ osg::Image* cubemap2fisheye(int width, int height, const std::vector<CubemapSurf
 			}
 			double azimuth = GrassSolar::calAzimuthAngle(x, y);
 			double alt = (1.0 - radius) * 90.0;
+			osg::Vec3 dir = GrassSolar::solarAngle2Vector(alt, azimuth);
+			// osg::Vec3 dir2 = osg::Vec3(x, y, 1 - radius);
+			// dir2.normalize();
+			// if (radius < 0.5)
+			// {
+			// 	printf("(%f,%f,%f),(%f,%f,%f)\n", dir.x(), dir.y(), dir.z(), dir2.x(), dir2.y(), dir2.z());
+			// }
+	
 			osg::TextureCubeMap::Face face = getCubemapFace(alt, azimuth);
 			osg::Image* faceImage = cubemap[face]->Image();
 			osg::Vec3d sundir = GrassSolar::solarAngle2Vector(alt, azimuth);
@@ -58,12 +66,6 @@ osg::Image* cubemap2fisheye(int width, int height, const std::vector<CubemapSurf
 			double u = (screenPos.x() + 1.0) * 0.5;
 			double v = (screenPos.y() + 1.0) * 0.5;
 			osg::Vec4 color = faceImage->getColor(osg::Vec2(u, v));
-
-			float scaleX = (float)col / (width - 1.0);
-			scaleX = max(scaleX, 0.2);
-			float scaleY = (float)row / (height - 1.0);
-			scaleY = max(scaleY, 0.2);
-			color = osg::Vec4(color.r() * scaleX, color.g() * scaleY, color.b(), 1.0);
 			*data++ = ColorUB4(color);
 		}
 	}
@@ -82,6 +84,7 @@ bool isShadowed(double alt, double azimuth, const std::vector<CubemapSurface*>& 
 	osg::Vec4 color = faceImage->getColor(osg::Vec2(u, v));
 	return color.a() > 0.65;
 }
+
 SVFComputeTools::SVFComputeTools()
 {
 }
@@ -110,57 +113,69 @@ osg::Group * SVFComputeTools::createSVFCameras(osg::Node * city)
 
 RenderSurface* SVFComputeTools::cubemap2hemispherical(osg::Group * svfCameraBuffers)
 {
-	//osg::TextureCubeMap* cubemap = SkyDome::loadCubeMapTextures("E:/OpenSceneGraphSVF/OpenSceneGraphSVF/images_WEIHAI", ".png");
-	enum { POS_X, NEG_X, POS_Y, NEG_Y, POS_Z, NEG_Z };
-
 	osg::ref_ptr<osg::TextureCubeMap> cubeMap = new osg::TextureCubeMap;
 	cubeMap->setInternalFormat(GL_RGBA);
-
-	cubeMap->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR_MIPMAP_LINEAR);
-	cubeMap->setFilter(osg::Texture::MAG_FILTER, osg::Texture::LINEAR);
+	cubeMap->setFilter(osg::Texture::MIN_FILTER, osg::Texture::NEAREST);
+	cubeMap->setFilter(osg::Texture::MAG_FILTER, osg::Texture::NEAREST);
 	cubeMap->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE);
 	cubeMap->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE);
 
-	cubeMap->setImage(osg::TextureCubeMap::NEGATIVE_X, ((RenderSurface*)svfCameraBuffers->getChild(NEG_X))->Image());
-	cubeMap->setImage(osg::TextureCubeMap::POSITIVE_X, ((RenderSurface*)svfCameraBuffers->getChild(POS_X))->Image());
-	cubeMap->setImage(osg::TextureCubeMap::NEGATIVE_Y, ((RenderSurface*)svfCameraBuffers->getChild(POS_Z))->Image());
-	cubeMap->setImage(osg::TextureCubeMap::POSITIVE_Y, ((RenderSurface*)svfCameraBuffers->getChild(NEG_Z))->Image());
-	cubeMap->setImage(osg::TextureCubeMap::NEGATIVE_Z, ((RenderSurface*)svfCameraBuffers->getChild(NEG_Y))->Image());
-	cubeMap->setImage(osg::TextureCubeMap::POSITIVE_Z, ((RenderSurface*)svfCameraBuffers->getChild(POS_Y))->Image());
-	//cubeMap->setImage(osg::TextureCubeMap::POSITIVE_X, ((RenderSurface*)svfCameraBuffers->getChild(osg::TextureCubeMap::POSITIVE_X))->Image());
-	//cubeMap->setImage(osg::TextureCubeMap::NEGATIVE_X, ((RenderSurface*)svfCameraBuffers->getChild(osg::TextureCubeMap::NEGATIVE_X))->Image());
-	//cubeMap->setImage(osg::TextureCubeMap::POSITIVE_Y, ((RenderSurface*)svfCameraBuffers->getChild(osg::TextureCubeMap::POSITIVE_Y))->Image());
-	//cubeMap->setImage(osg::TextureCubeMap::NEGATIVE_Y, ((RenderSurface*)svfCameraBuffers->getChild(osg::TextureCubeMap::NEGATIVE_Y))->Image());
-	//cubeMap->setImage(osg::TextureCubeMap::POSITIVE_Z, ((RenderSurface*)svfCameraBuffers->getChild(osg::TextureCubeMap::POSITIVE_Z))->Image());
-	//cubeMap->setImage(osg::TextureCubeMap::NEGATIVE_Z, ((RenderSurface*)svfCameraBuffers->getChild(osg::TextureCubeMap::NEGATIVE_Z))->Image());
+	cubeMap->setImage(osg::TextureCubeMap::NEGATIVE_X, ((RenderSurface*)svfCameraBuffers->getChild(osg::TextureCubeMap::NEGATIVE_X))->Image());
+	cubeMap->setImage(osg::TextureCubeMap::POSITIVE_X, ((RenderSurface*)svfCameraBuffers->getChild(osg::TextureCubeMap::POSITIVE_X))->Image());
+	cubeMap->setImage(osg::TextureCubeMap::NEGATIVE_Y, ((RenderSurface*)svfCameraBuffers->getChild(osg::TextureCubeMap::POSITIVE_Z))->Image());
+	cubeMap->setImage(osg::TextureCubeMap::POSITIVE_Y, ((RenderSurface*)svfCameraBuffers->getChild(osg::TextureCubeMap::NEGATIVE_Z))->Image());
+	cubeMap->setImage(osg::TextureCubeMap::NEGATIVE_Z, ((RenderSurface*)svfCameraBuffers->getChild(osg::TextureCubeMap::NEGATIVE_Y))->Image());
+	cubeMap->setImage(osg::TextureCubeMap::POSITIVE_Z, ((RenderSurface*)svfCameraBuffers->getChild(osg::TextureCubeMap::POSITIVE_Y))->Image());
 	char vertexSource[] =
 		"void main(void)\n"
 		"{\n"
-		"   gl_TexCoord[0] = vec4(gl_Vertex.x,gl_Vertex.y,0,1.0);\n"
+		"   gl_TexCoord[0] = vec4(-gl_Vertex.x,gl_Vertex.y,0,1.0);\n"
 		"   gl_Position   = vec4(-gl_Vertex.x,gl_Vertex.y,0,1);\n"
 		"}\n";
 
 	char fragmentSource[] =
-		"uniform vec4 color;\n"
-		"uniform float alpha;\n"
 		"uniform samplerCube uEnvironmentMap;\n"
-		"uniform float rotateAngle;\n"
-		"\n"
-		"vec3 spherical2Cartisian(float lon, float lat)\n"
-		"{\n"
-		"float theta = lon * 0.0174533;\n"
-		"float phi =   lat* 0.0174533;\n"
-		"return vec3(cos(phi)*cos(theta), cos(phi)*sin(theta), sin(phi));\n"
-		"}\n"
+		"const float PI = 3.1415926535897932384626433832795;\n"
+		"const float PI_2 = 1.57079632679489661923;\n"
+		"const float degree2radian = 0.0174533;\n"
+		"const float radian2degree = 57.2958;\n"
 
+		"float calAzimuth(float x, float y)\n"
+		"{\n"
+			"float x2 = 0.0;\n"
+			"float y2 = 1.0;\n"
+			"float dot = x * x2 + y * y2;      //# dot product\n"
+			"float det = x * y2 - y * x2;      //# determinant\n"
+			"float angle = atan(det, dot) * radian2degree;  //# atan2(y, x) or atan2(sin, cos)\n"
+	     	"if (angle < 0)\n"
+		       "angle += 360;\n"
+			"return angle;\n"
+		"}\n"
+		"vec3 cartesian2hemispherical(vec2 xy)\n"
+		"{\n"
+			"float rho = length(xy);\n"
+		    "float x = xy.x;\n"
+		    "float y = xy.y;\n"
+			"float azimuth = calAzimuth(x, y);\n"
+			"float alt = (1.0 - rho) * 90.0;\n"
+			"float z = cos((90.0 - alt)*degree2radian);\n"
+			"float projectedLenghOnXY = cos(alt*degree2radian);\n"
+			"y = projectedLenghOnXY * cos(azimuth*degree2radian);\n"
+			"x = projectedLenghOnXY * cos((90 - azimuth)*degree2radian);\n"
+			"return normalize(vec3(x, y, z));\n"
+		"}\n"
 		"void main(void) \n"
 		"{\n"
 		"    float radius = length(gl_TexCoord[0].xy);\n"
-		"    vec3 tex = vec3(-gl_TexCoord[0].x, gl_TexCoord[0].y, -(1-radius));\n"
-		"    vec4 rgba = textureCube( uEnvironmentMap, tex.xzy);\n"
+		"    //vec3 dir = normalize(vec3(gl_TexCoord[0].x, -(1-radius), gl_TexCoord[0].y));//a close approximation of the solar vector\n"
+		"    //vec4 rgba = textureCube(uEnvironmentMap, dir);\n"
+		"    vec3 dir = cartesian2hemispherical(gl_TexCoord[0].xy);\n"
+		"    vec4 rgba = textureCube( uEnvironmentMap, vec3(dir.x, -dir.z, dir.y));\n"
 		"    if(radius > 1)\n"
 		"    {\n"
 		"        rgba = vec4(0,0,1,0.3);\n"
+		"        gl_FragColor = rgba;\n"
+		"        return;\n"
 		"    }\n"
 		"    else if(rgba.a < 0.5)\n"
 		"    {\n"
@@ -170,106 +185,29 @@ RenderSurface* SVFComputeTools::cubemap2hemispherical(osg::Group * svfCameraBuff
 		"    {\n"
 		"        rgba = vec4(rgba.rgb,0.85);\n"
 		"    }\n"
+		"    //rgba = vec4(dir*0.5+vec3(0.5),1);//check the solar vectors\n"
 		"    gl_FragColor = rgba;\n"
-		//"    if(radius > 1)\n"
-		//"    {\n"
-		//"        gl_FragColor = vec4(0,0,1,0.3);\n"
-		//"    }\n"
-		//"    else if(gl_FragColor.a < 0.5)\n"
-		//"    {\n"
-		//"        gl_FragColor = vec4(0.207843137, 0.317647059, 0.360784314,0.5);\n"
-		//"    }\n"
-		//"    else\n"
-		//"    {\n"
-		//"        gl_FragColor = vec4(gl_FragColor.rgb, 0.75);\n"
-		//"    }\n"
 		"}\n";
 
 	OverlayRenderSurface* fisheye = new OverlayRenderSurface(512, 512, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, true);
 	fisheye->Overlay()->setProgramName("fisheye");
-	//memcpy(updateParticlesSurfaceStorage->Image()->data(), particlesMap->data(), imageSize);
-	//Store the updated particles
 	fisheye->Overlay()->SetTextureLayer(cubeMap.get(), 0);
-	fisheye->Overlay()->SetVertexShader(vertexSource);
+    fisheye->Overlay()->SetVertexShader(vertexSource);
 	fisheye->Overlay()->SetFragmentShader(fragmentSource);
 	fisheye->getOrCreateStateSet()->addUniform(new osg::Uniform("uEnvironmentMap", 0));
-	fisheye->getOrCreateStateSet()->addUniform(new osg::Uniform("alpha", 0.0f));
-  return fisheye;
-}
+	//  const char *samplerNames[6] = 
+	//  { 
+    //  "cubeFacePositiveX", "cubeFaceNegativeX", 
+	//  "cubeFacePositiveY", "cubeFaceNegativeY" 
+	//  "cubeFacePositiveZ", "cubeFaceNegativeZ"
+	//  }; 
 
-osg::Node * SVFComputeTools::createTextureRect(std::string texfile)
-{
-	osg::ref_ptr<osg::Texture2D> tex = new osg::Texture2D;
-	tex->setWrap(osg::Texture2D::WRAP_S, osg::Texture2D::CLAMP_TO_BORDER);
-	tex->setWrap(osg::Texture2D::WRAP_T, osg::Texture2D::CLAMP_TO_BORDER);
-	tex->setImage(osgDB::readImageFile(texfile));
-
-	osg::Geode* geode = new osg::Geode;
-	//createGeometry( );
-	//SetupStateSet(cubemap);
-	osg::ref_ptr<osg::Geometry> geom = new osg::Geometry();
-	osg::Vec3Array* vertices = new osg::Vec3Array();
-	osg::Vec3Array* normals = new osg::Vec3Array();
-	vertices->push_back(osg::Vec3(-1, -1, 1));
-	vertices->push_back(osg::Vec3(-1, 1, 1));
-	vertices->push_back(osg::Vec3(1, -1, 1));
-	vertices->push_back(osg::Vec3(1, -1, 1));
-	vertices->push_back(osg::Vec3(-1, 1, 1));
-	vertices->push_back(osg::Vec3(1, 1, 1));
-	normals->push_back(osg::Vec3(0, 0, 1));
-	geom->setVertexArray(vertices);
-	geom->setNormalArray(normals);
-	geom->setNormalBinding(osg::Geometry::BIND_OVERALL);
-	geom->setCullingActive(false);
-	geode->setCullingActive(false);
-	geode->getOrCreateStateSet()->setMode(GL_CULL_FACE,
-		osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE);
-	geom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::TRIANGLES, 0, 6));
-	geode->addDrawable(geom.get());
-	geode->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
-	geode->getOrCreateStateSet()->setTextureAttributeAndModes(0, tex.get(), osg::StateAttribute::ON);
-
-	osg::Program* program = new osg::Program;
-
-	char vertexSource[] =
-		"void main(void)\n"
-		"{\n"
-		"   gl_TexCoord[0] = vec4(gl_Vertex.x,gl_Vertex.y,0,1.0);\n"
-		"   //gl_Position   = vec4(gl_Vertex.x*0.5-0.5,gl_Vertex.y*0.5+0.5,0,1);\n"
-		"   gl_Position   = vec4(gl_Vertex.x*0.5+0.5,gl_Vertex.y*0.5+0.5,0,1);\n"
-		"}\n";
-	char fragmentSource[] =
-		"uniform sampler2D texture0;\n"
-		"uniform float rotateAngle;\n"
-		"vec2 rotate(vec2 uv,float angle)\n"
-		"{\n"
-		"    angle = angle * 0.0174533;\n"
-		"    float sin_factor = sin(angle);\n"
-		"    float cos_factor = cos(angle);\n"
-		"    uv = (uv - 0.5) * mat2(cos_factor, sin_factor, -sin_factor, cos_factor);\n"
-		"    uv += 0.5;\n"
-		"    return uv;\n"
-		"}\n"
-		"void main(void) \n"
-		"{\n"
-		"    vec2 uv = gl_TexCoord[0].xy; \n"
-		"    uv = uv * 0.5 + 0.5;\n"
-		"    uv = rotate(uv,rotateAngle);\n"
-		"    vec4 color =   texture2D( texture0, uv );\n"
-		"    gl_FragColor = vec4(color.rgb,0.5);\n"
-		"}\n";
-	program->setName("sky_dome_shader");
-	program->addShader(new osg::Shader(osg::Shader::VERTEX, vertexSource));
-	program->addShader(new osg::Shader(osg::Shader::FRAGMENT, fragmentSource));
-	geode->getOrCreateStateSet()->setAttributeAndModes(program, osg::StateAttribute::ON);
-	geode->getOrCreateStateSet()->addUniform(new osg::Uniform("texture0", 0));
-	geode->getOrCreateStateSet()->addUniform(new osg::Uniform("rotateAngle", 0.0f));
-
-	//geode->getOrCreateStateSet()->setRenderBinDetails(100000, "RenderBin");
-	geode->getOrCreateStateSet()->setMode(GL_BLEND, osg::StateAttribute::OFF);
-	geode->getOrCreateStateSet()->setRenderingHint(osg::StateSet::OPAQUE_BIN);
-	//g_pPanoState = geode->getOrCreateStateSet();
-	return geode;
+	// for (int i = 0; i < 6; i++)
+	// {
+	// 	fisheye->Overlay()->SetTextureLayer(((RenderSurface*)svfCameraBuffers->getChild(i))->Texture().get(), i);
+	//     fisheye->getOrCreateStateSet()->addUniform(new osg::Uniform(samplerNames[i], i));
+	// }
+    return fisheye;
 }
 
 double SVFComputeTools::calSVF(osg::Image * img, bool applyLambert)
@@ -344,10 +282,10 @@ SolarRadiation SVFComputeTools::calSolar(osg::Image* img, SolarParam* solarParam
 	for (int day = startDay; day <= endDay; day++)
 	{
 		param.startDay = day;
-		std::vector<bool> shadowMasks;
-		std::vector<bool> shadowMasksRayCaster;
+		//std::vector<bool> shadowMasks;
+		//std::vector<bool> shadowMasksRayCaster;
 		std::vector<SunVector> sunVecs = rsun.getSunVectors(param);
-		shadowMasks.resize(sunVecs.size());
+		//shadowMasks.resize(sunVecs.size());
 		if (lastSteps != sunVecs.size())
 		{
 			if (param.shadowInfo)
@@ -357,20 +295,20 @@ SolarRadiation SVFComputeTools::calSolar(osg::Image* img, SolarParam* solarParam
 		for (int n = 0; n < sunVecs.size(); n++)
 		{
 			SunVector sunVec = sunVecs[n];
-			osg::Vec3d sundir = GrassSolar::solarAngle2Vector(sunVec.alt, sunVec.azimuth);
-			osg::Vec3d start = pos;
-			osg::Vec3d end = pos + sundir * 10000000;
-			osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector = new osgUtil::LineSegmentIntersector(start, end);
-			osgUtil::IntersectionVisitor intersectVisitor(intersector.get());
-			sceneNode->accept(intersectVisitor);
-			if (intersector->containsIntersections())
-			{
-				shadowMasksRayCaster.push_back(true);
-			}
-			else
-			{
-				shadowMasksRayCaster.push_back(false);
-			}
+			//osg::Vec3d sundir = GrassSolar::solarAngle2Vector(sunVec.alt, sunVec.azimuth);
+			//osg::Vec3d start = pos;
+			//osg::Vec3d end = pos + sundir * 10000000;
+			//osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector = new osgUtil::LineSegmentIntersector(start, end);
+			//osgUtil::IntersectionVisitor intersectVisitor(intersector.get());
+			//sceneNode->accept(intersectVisitor);
+			//if (intersector->containsIntersections())
+			//{
+			//	shadowMasksRayCaster.push_back(true);
+			//}
+			//else
+			//{
+			//	shadowMasksRayCaster.push_back(false);
+			//}
 			double radius = (90.0 - sunVec.alt) / 90.0 * 0.5;
 			//double radius = sin(osg::DegreesToRadians(90.0 - sunVec.alt)) * 0.5;
 			double theta = sunVec.azimuth - 90;
@@ -383,10 +321,10 @@ SolarRadiation SVFComputeTools::calSolar(osg::Image* img, SolarParam* solarParam
 			y += 0.5;
 			osg::Vec4 color = img->getColor(osg::Vec2(x, y));
 			param.shadowInfo[n] = color.a() > 0.7 ? true : false;
-			shadowMasks[n] = param.shadowInfo[n];
+			//shadowMasks[n] = param.shadowInfo[n];
 		}
 
-		for (int n = 0; n < sunVecs.size(); n++)
+		/*for (int n = 0; n < sunVecs.size(); n++)
 		{
 			printf("%d", shadowMasks[n] ? 1 : 0);
 			if(n == sunVecs.size() - 1)
@@ -402,7 +340,7 @@ SolarRadiation SVFComputeTools::calSolar(osg::Image* img, SolarParam* solarParam
 				printf("\n");
 			else
 				printf(",");
-		}
+		}*/
 
 		param.day = day;
 		SolarRadiation dailyRad = rsun.calculateSolarRadiation(param);
@@ -528,7 +466,7 @@ void SkyViewFactorEventHandler::computeMouseIntersection(osgUtil::LineSegmentInt
 			for (size_t i = 0; i < _cubemapCameras->getNumChildren(); i++)
 			{
 					RenderSurface* cameraBuffer = (RenderSurface*)_cubemapCameras->getChild(i);
-					osgDB::writeImageFile(*cameraBuffer->Image(), cameraBuffer->getName() + ".png");
+					//osgDB::writeImageFile(*cameraBuffer->Image(), cameraBuffer->getName() + ".png");
 			}
 		 osg::ref_ptr<osg::Image> fisheye =	cubemap2fisheye(512, 512, getCubemapCameras(_cubemapCameras.get()));
 		 osgDB::writeImageFile(*fisheye, "fisheye2.png");
@@ -574,25 +512,6 @@ bool SkyViewFactorEventHandler::handle(const osgGA::GUIEventAdapter & ea, osgGA:
 
 	return false;
 }
-//cubeMap->setImage(osg::TextureCubeMap::NEGATIVE_X, ((RenderSurface*)svfCameraBuffers->getChild(NEG_X))->Image());
-//cubeMap->setImage(osg::TextureCubeMap::POSITIVE_X, ((RenderSurface*)svfCameraBuffers->getChild(POS_X))->Image());
-//cubeMap->setImage(osg::TextureCubeMap::NEGATIVE_Y, ((RenderSurface*)svfCameraBuffers->getChild(POS_Z))->Image());
-//cubeMap->setImage(osg::TextureCubeMap::POSITIVE_Y, ((RenderSurface*)svfCameraBuffers->getChild(NEG_Z))->Image());
-//cubeMap->setImage(osg::TextureCubeMap::NEGATIVE_Z, ((RenderSurface*)svfCameraBuffers->getChild(NEG_Y))->Image());
-//cubeMap->setImage(osg::TextureCubeMap::POSITIVE_Z, ((RenderSurface*)svfCameraBuffers->getChild(POS_Y))->Image());
-
-//static const char* FaceNames[] = { "POSITIVE_X","NEGATIVE_X","POSITIVE_Y","NEGATIVE_Y","POSITIVE_Z","NEGATIVE_Z" };
-//
-//void SkyViewFactorEventHandler::Test(SunVector sunVec, osg::Vec3d pos)
-//{
-//	osg::Vec3d sundir = GrassSolar::solarAngle2Vector(sunVec.alt, sunVec.azimuth);
-//	osg::Vec3d end = pos + sundir * 10000000;
-//	osg::TextureCubeMap::Face face = getFace(sunVec.azimuth, sunVec.alt);
-//	CubemapSurface* camera = (CubemapSurface*)_cubemapCameras->getChild(face);
-//	osg::Image* faceImage = camera->Image();
-//	osg::Vec3d screenPos = end * camera->getViewMatrix() * camera->getProjectionMatrix();
-//	printf("(%f,%f),(%s,%f,%f)\n", sunVec.azimuth, sunVec.alt, FaceNames[face], screenPos.x(), screenPos.y());
-//}
 
 SolarRadiation SkyViewFactorEventHandler::calSolar(osg::Vec3d pos, osg::Vec3d normal)
 {
@@ -613,10 +532,10 @@ SolarRadiation SkyViewFactorEventHandler::calSolar(osg::Vec3d pos, osg::Vec3d no
 	for (int day = startDay; day <= endDay; day++)
 	{
 		param.startDay = day;
-		std::vector<bool> shadowMasks;
-		std::vector<bool> shadowMasksRayCaster;
+		//std::vector<bool> shadowMasks;
+		//std::vector<bool> shadowMasksRayCaster;
 		std::vector<SunVector> sunVecs = rsun.getSunVectors(param);
-		shadowMasks.resize(sunVecs.size());
+		//shadowMasks.resize(sunVecs.size());
 		if (lastSteps != sunVecs.size())
 		{
 			if (param.shadowInfo)
@@ -626,35 +545,21 @@ SolarRadiation SkyViewFactorEventHandler::calSolar(osg::Vec3d pos, osg::Vec3d no
 		for (int n = 0; n < sunVecs.size(); n++)
 		{
 			SunVector sunVec = sunVecs[n];
-			osg::Vec3d sundir = GrassSolar::solarAngle2Vector(sunVec.alt, sunVec.azimuth);
-			osg::Vec3d start = pos;
-			osg::Vec3d end = pos + sundir * 10000000;
-			//int face = getFace(sunVec.azimuth, sunVec.alt);
-			//CubemapSurface* camera = (CubemapSurface*)_cubemapCameras->getChild(face);
-			//osg::Image* faceImage = camera->Image();
-			//osg::Vec3d screenPos = end * camera->getViewMatrix() * camera->getProjectionMatrix();
-
-			//Test(SunVector(0, 44.999), pos);
-			//Test(SunVector(0, 45.1), pos);
-			//Test(SunVector(45.1, 0), pos);
-			//Test(SunVector(135.1, 0), pos);
-			//Test(SunVector(225.1, 0), pos);
-			//Test(SunVector(315.1, 0), pos);
-			//Test(SunVector(45.1, 44.999), pos);
-			//Test(SunVector(135.1, 44.999), pos);
-			//Test(SunVector(225.1, 44.999), pos);
-			//Test(SunVector(315.1, 44.999), pos);
-			osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector = new osgUtil::LineSegmentIntersector(start, end);
-			osgUtil::IntersectionVisitor intersectVisitor(intersector.get());
-			_sceneNode->accept(intersectVisitor);
-			if (intersector->containsIntersections())
-			{
-				shadowMasksRayCaster.push_back(true);
-			}
-			else
-			{
-				shadowMasksRayCaster.push_back(false);
-			}
+			//osg::Vec3d sundir = GrassSolar::solarAngle2Vector(sunVec.alt, sunVec.azimuth);
+			//osg::Vec3d start = pos;
+			//osg::Vec3d end = pos + sundir * 10000000;
+			//
+			//osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector = new osgUtil::LineSegmentIntersector(start, end);
+			//osgUtil::IntersectionVisitor intersectVisitor(intersector.get());
+			//_sceneNode->accept(intersectVisitor);
+			//if (intersector->containsIntersections())
+			//{
+			//	shadowMasksRayCaster.push_back(true);
+			//}
+			//else
+			//{
+			//	shadowMasksRayCaster.push_back(false);
+			//}
 			//double radius = (90.0 - sunVec.alt) / 90.0 * 0.5;
 			////double radius = sin(osg::DegreesToRadians(90.0 - sunVec.alt)) * 0.5;
 			//double theta = sunVec.azimuth - 90;
@@ -668,10 +573,10 @@ SolarRadiation SkyViewFactorEventHandler::calSolar(osg::Vec3d pos, osg::Vec3d no
 			//osg::Vec4 color = img->getColor(osg::Vec2(x, y));
 			//param.shadowInfo[n] = color.a() > 0.7 ? true : false;
 			param.shadowInfo[n] = isShadowed(sunVec.alt, sunVec.azimuth, cubemapCameras);
-			shadowMasks[n] = param.shadowInfo[n];
+			//shadowMasks[n] = param.shadowInfo[n];
 		}
 
-		for (int n = 0; n < sunVecs.size(); n++)
+		/*for (int n = 0; n < sunVecs.size(); n++)
 		{
 			printf("%d", shadowMasks[n] ? 1 : 0);
 			if (n == sunVecs.size() - 1)
@@ -687,7 +592,7 @@ SolarRadiation SkyViewFactorEventHandler::calSolar(osg::Vec3d pos, osg::Vec3d no
 				printf("\n");
 			else
 				printf(",");
-		}
+		}*/
 
 		param.day = day;
 		SolarRadiation dailyRad = rsun.calculateSolarRadiation(param);

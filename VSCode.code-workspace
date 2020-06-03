@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"texturecubemap": "cpp",
+			"node": "cpp",
+			"referenced": "cpp",
+			"ref_ptr": "cpp",
+			"guieventadapter": "cpp"
+		}
+	}
+}

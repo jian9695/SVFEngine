@@ -84,8 +84,6 @@ public:
 	static osg::Group* createSVFCameras(osg::Node* city);
 	//create node to convert a cubemap set into a fisheye view and then render onto an off-screen _image
 	static RenderSurface* cubemap2hemispherical(osg::Group* _cubemapCameras);
-	//create node to convert a cubemap set into a fisheye view and then render onto the screen
-	static osg::Node* createTextureRect(std::string texfile);
 	//calculate SVF from a fisheye _image
 	//Lambert's cosine law will be applied when applyLambert = true
 	static double calSVF(osg::Image* img, bool applyLambert = false);
