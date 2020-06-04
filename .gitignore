@@ -19,3 +19,4 @@
 *.iobj
 *.exe
 *.lib
+/bin/Solar3D.exp

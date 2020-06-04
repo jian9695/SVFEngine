@@ -418,7 +418,7 @@ void SkyViewFactorEventHandler::computeMouseIntersection(osgUtil::LineSegmentInt
 
 	osg::Vec3d cureye = ray->getFirstIntersection().getWorldIntersectPoint() + _dir * 50;
 
-	//_viewer->setCameraManipulator(NULL, false);
+	_viewer->setCameraManipulator(NULL, false);
 	_viewer->frame();
 	//while (_viewer->getDatabasePager()->getRequestsInProgress())
 	//{
@@ -444,6 +444,7 @@ void SkyViewFactorEventHandler::computeMouseIntersection(osgUtil::LineSegmentInt
 		cameraBuffer->_pos = observer;
 	}
 	_cubemapCameras->setNodeMask(true);
+	_viewer->getCamera()->setNodeMask(false);
 	_viewer->frame();
 	//while (_viewer->getDatabasePager()->getRequestsInProgress())
 	//{
@@ -454,11 +455,12 @@ void SkyViewFactorEventHandler::computeMouseIntersection(osgUtil::LineSegmentInt
 			_viewer->frame();
 	}
 	_cubemapCameras->setNodeMask(false);
+	_viewer->getCamera()->setNodeMask(true);
 	_viewer->getCamera()->setViewMatrixAsLookAt(orieye, oricenter, oriup);
 
 	osg::Matrix viewmat;
 	viewmat.makeLookAt(orieye, oricenter, oriup);
-	//_viewer->setCameraManipulator(_manip.get(), false);
+	_viewer->setCameraManipulator(_manip.get(), false);
 	_manip->setByInverseMatrix(viewmat);
 	_viewer->getCamera()->getViewMatrixAsLookAt(orieye, oricenter, oriup);
 	if (_cubemap2fisheyeCamera && _cubemap2fisheyeCamera.valid())

@@ -633,74 +633,9 @@ void addParks(Map* map)
   }
 }
 
-osg::Vec2 spherical2image(double alt, double azimuth)
-{
-  osg::Vec3d light = GrassSolar::solarAngle2Vector(alt, azimuth);
-
-  double radius = (90.0 - alt) / 90.0 * 0.5;
-  double theta = azimuth - 90; 
-  if (theta < 0)
-    theta += 360;
-  theta = osg::DegreesToRadians(theta);
-  double x = radius * cos(theta);
-  double y = radius * sin(theta);
-  x += 0.5;
-  y += 0.5;
-  printf("(%f,%f), (%f,%f), (%f,%f)\n", alt, azimuth, light.x(), light.y(), x, y);
-  return osg::Vec2(x, y);
-}
-
-double calAngle(double x, double y)
-{
-  double x2 = 0.0;
-  double y2 = 1.0;
-  double dot = x * x2 + y * y2;      //# dot product
-  double det = x * y2 - y * x2;      //# determinant
-  double angle = osg::RadiansToDegrees(atan2(det, dot));  //# atan2(y, x) or atan2(sin, cos)
-  if (angle < 0)
-    angle += 360;
-  return angle;
-}
-
-
-void hemispherical2cartesian(double theta, double rho)
-{
-  double angle = osg::DegreesToRadians(theta);
-  double x = rho * sin(angle);
-  double y = rho * cos(angle);
-  printf("(%f,%f),(%f,%f)\n", theta, rho, x, y);
-}
-
-void cartesian2hemispherical(double x, double y)
-{
-  double rho = sqrt(x * x + y * y);
-  double azimuth = calAngle(x, y);
-  double alt = (1.0 - rho) * 90.0;
-  osg::Vec3d vec3;
-  vec3.z() = cos(osg::DegreesToRadians(90.0 - alt));
-  double projectedLenghOnXY = cos(osg::DegreesToRadians(alt));
-  vec3.y() = projectedLenghOnXY * cos(osg::DegreesToRadians(azimuth));
-  vec3.x() = projectedLenghOnXY * cos(osg::DegreesToRadians(90 - azimuth));
-  vec3.normalize();
-  printf("(%f,%f),(%f,%f,%f)\n", x, y, vec3.x(), vec3.y(), vec3.z());
-}
 
 int main(int argc, char** argv)
 {
-
-  hemispherical2cartesian(0, 1);
-  hemispherical2cartesian(45, 1);
-  hemispherical2cartesian(90, 1);
-  hemispherical2cartesian(180, 1);
-  hemispherical2cartesian(225, 1);
-  hemispherical2cartesian(315, 1);
-
-  cartesian2hemispherical(0, 0);
-  cartesian2hemispherical(0, 1);
-  cartesian2hemispherical(0, -1);
-  cartesian2hemispherical(1, 0);
-  cartesian2hemispherical(-1, 0);
-  cartesian2hemispherical(0, 0.5);
   osg::ArgumentParser arguments(&argc, argv);
   osgViewer::Viewer* viewer = new osgViewer::Viewer(arguments);
   viewer->setUpViewAcrossAllScreens();

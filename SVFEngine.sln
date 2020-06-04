@@ -22,6 +22,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Example2", "Example2\Exampl
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SVFEngine", "SVFEngine\SVFEngine.vcxproj", "{62D74672-958E-43AB-8326-EDD104916D15}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Solar3D", "Solar3D\Solar3D.vcxproj", "{6A000ED9-C66F-48CB-8547-34A2AB0F5A76}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Release|x64 = Release|x64
@@ -48,6 +50,10 @@ Global
 		{62D74672-958E-43AB-8326-EDD104916D15}.Release|x64.Build.0 = Release|x64
 		{62D74672-958E-43AB-8326-EDD104916D15}.ReleaseD|x64.ActiveCfg = ReleaseD|x64
 		{62D74672-958E-43AB-8326-EDD104916D15}.ReleaseD|x64.Build.0 = ReleaseD|x64
+		{6A000ED9-C66F-48CB-8547-34A2AB0F5A76}.Release|x64.ActiveCfg = Release|x64
+		{6A000ED9-C66F-48CB-8547-34A2AB0F5A76}.Release|x64.Build.0 = Release|x64
+		{6A000ED9-C66F-48CB-8547-34A2AB0F5A76}.ReleaseD|x64.ActiveCfg = ReleaseD|x64
+		{6A000ED9-C66F-48CB-8547-34A2AB0F5A76}.ReleaseD|x64.Build.0 = ReleaseD|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

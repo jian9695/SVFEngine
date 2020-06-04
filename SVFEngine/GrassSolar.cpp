@@ -628,7 +628,6 @@ void GrassSolar::joules2(TempVariables& tmpval,const bool& isInstaneous,const do
 			tmpval.tien = tmpval.shadowInfo[curTimeStep];
 		}
 
-
 		curTimeStep++;
 	    s0 = lumcline2(tmpval);
 
