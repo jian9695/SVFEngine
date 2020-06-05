@@ -361,8 +361,8 @@ void createControls(CustomControls::ControlCanvas* cs)
   osg::ref_ptr<CustomControls::HBox> endDaySlider = new ParamControl("EndDay", PadRight("End Day", maxLabelLen), 1, 365, m_solarParam.endDay, true);
   osg::ref_ptr<CustomControls::HBox> isSingleDayCheck = new ParamControl("SingleDayMode", PadRight("Single Day Mode", maxLabelLen), m_solarParam.isSingleDay);
   osg::ref_ptr<CustomControls::HBox> timeStepSlider = new ParamControl("TimeStep", PadRight("Time Step (hours)", maxLabelLen), 0.1, 1, m_solarParam.time_step, false);
-  osg::ref_ptr<CustomControls::HBox> latSlider = new ParamControl("Latitude", PadRight("Latitude Override", maxLabelLen), -90, 90, m_solarParam.lat, false, true);
-  osg::ref_ptr<CustomControls::HBox> elevSlider = new ParamControl("Elevation", PadRight("Elevation Override", maxLabelLen), 0, 9999, m_solarParam.elev, false, true);
+  osg::ref_ptr<CustomControls::HBox> latSlider = new ParamControl("Latitude", PadRight("Default Latitude", maxLabelLen), -90, 90, m_solarParam.lat, false, true);
+  osg::ref_ptr<CustomControls::HBox> elevSlider = new ParamControl("Elevation", PadRight("Default Base Elevation", maxLabelLen), 0, 9999, m_solarParam.elev, false, true);
   m_parametersControl->addControl(titleLabel.get());
   m_parametersControl->addControl(isSingleDayCheck.get());
   m_parametersControl->addControl(startDaySlider.get());
@@ -684,8 +684,8 @@ int main(int argc, char** argv)
   osg::ref_ptr<osg::Group> root = new osg::Group;
   root->addChild(node.get());
   viewer.setSceneData(root.get());
-
-  m_skyViewHandler = new SkyViewFactorEventHandler(node.get(), root.get(), manip.get(), &viewer, &m_solarParam, ResultsUpdated);
+  MapNode* mapNode = MapNode::findMapNode(node);
+  m_skyViewHandler = new SkyViewFactorEventHandler(mapNode, root.get(), manip.get(), &viewer, &m_solarParam, ResultsUpdated);
  
   // create a surface to house the controls
   CustomControls::ControlCanvas* cs = CustomControls::ControlCanvas::getOrCreate(&viewer);

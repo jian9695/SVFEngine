@@ -7,6 +7,6 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseD|x64'">
     <LocalDebuggerWorkingDirectory>$(SolutionDir)\bin</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>E:/Code/osgEarth/tests/feature_extrude.earth</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>./tests/boston_buildings.earth</LocalDebuggerCommandArguments>
   </PropertyGroup>
 </Project>

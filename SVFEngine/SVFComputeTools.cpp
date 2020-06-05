@@ -1,6 +1,7 @@
 #include "SVFComputeTools.h"
 #include <osg/ComputeBoundsVisitor>
 #include <iomanip>
+#include <osgEarth/MapNode>
 
 osg::TextureCubeMap::Face getCubemapFace(float alt, float azimuth)
 {
@@ -405,7 +406,7 @@ void SkyViewFactorEventHandler::printfVec3(osg::Vec3 v)
 	printf("%f,%f,%f\n", v.x(), v.y(), v.z());
 }
 
-void SkyViewFactorEventHandler::computeMouseIntersection(osgUtil::LineSegmentIntersector * ray)
+void SkyViewFactorEventHandler::computeMouseIntersection(osgUtil::LineSegmentIntersector* ray)
 {
 
 	osg::Vec3d orieye, oricenter, oriup;
@@ -418,33 +419,45 @@ void SkyViewFactorEventHandler::computeMouseIntersection(osgUtil::LineSegmentInt
 
 	osg::Vec3d cureye = ray->getFirstIntersection().getWorldIntersectPoint() + _dir * 50;
 
-	_viewer->setCameraManipulator(NULL, false);
-	_viewer->frame();
+	//_viewer->setCameraManipulator(NULL, false);
+	//_viewer->frame();
 	//while (_viewer->getDatabasePager()->getRequestsInProgress())
 	//{
 	//		_viewer->frame();
 	//}
-	for (size_t i = 0; i < 6; i++)
-	{
-			_viewer->frame();
-	}
-	osgUtil::IntersectionVisitor visitor(ray);
-	_viewer->getCamera()->accept(visitor);
+	//for (size_t i = 0; i < 6; i++)
+	//{
+	//		_viewer->frame();
+	//}
+	//osgUtil::IntersectionVisitor visitor(ray);
+	//_viewer->getCamera()->accept(visitor);
 	//printfVec3(ray->getFirstIntersection().getWorldIntersectPoint());
-	osg::Vec3d observer = ray->getFirstIntersection().getWorldIntersectPoint();
-	osg::Vec3d observerNormal = ray->getFirstIntersection().getWorldIntersectNormal();
-	observerNormal.normalize();
-	observer = observer + observerNormal * 0.1; //distance of camera from the surface
+	osg::Vec3d worldPos = ray->getFirstIntersection().getWorldIntersectPoint();
+	osg::Vec3d surfaceNormal = ray->getFirstIntersection().getWorldIntersectNormal();
+	surfaceNormal.normalize();
+	worldPos = worldPos + surfaceNormal * 0.1; //distance of camera from the surface
 	//printfVec3(observerNormal);
-	_pointRenderer->setPoint(observer);
+	_pointRenderer->setPoint(worldPos);
+
+	bool hasSpatialRef = isEarth();
+	osg::Vec3d geoPos = osg::Vec3d(_solarParam->lon, _solarParam->lat, _solarParam->elev + worldPos.z());
+	osg::Matrixd local2world = osg::Matrixd::identity();
+	if (hasSpatialRef)
+	{
+		std::tie(hasSpatialRef, geoPos, local2world) = getGeoTransform(worldPos);
+		osg::Matrixd world2local = osg::Matrixd::inverse(local2world);
+		surfaceNormal = surfaceNormal * world2local;
+		surfaceNormal.normalize();
+	}
 
 	for (size_t i = 0; i < _cubemapCameras->getNumChildren(); i++)
 	{
 		CubemapSurface* cameraBuffer = (CubemapSurface*)_cubemapCameras->getChild(i);
-		cameraBuffer->_pos = observer;
+		cameraBuffer->_pos = worldPos;
+		cameraBuffer->_local2World = local2world;
 	}
 	_cubemapCameras->setNodeMask(true);
-	_viewer->getCamera()->setNodeMask(false);
+	//_viewer->getCamera()->setNodeMask(false);
 	_viewer->frame();
 	//while (_viewer->getDatabasePager()->getRequestsInProgress())
 	//{
@@ -455,14 +468,14 @@ void SkyViewFactorEventHandler::computeMouseIntersection(osgUtil::LineSegmentInt
 			_viewer->frame();
 	}
 	_cubemapCameras->setNodeMask(false);
-	_viewer->getCamera()->setNodeMask(true);
-	_viewer->getCamera()->setViewMatrixAsLookAt(orieye, oricenter, oriup);
+	//_viewer->getCamera()->setNodeMask(true);
+	//_viewer->getCamera()->setViewMatrixAsLookAt(orieye, oricenter, oriup);
 
-	osg::Matrix viewmat;
-	viewmat.makeLookAt(orieye, oricenter, oriup);
-	_viewer->setCameraManipulator(_manip.get(), false);
-	_manip->setByInverseMatrix(viewmat);
-	_viewer->getCamera()->getViewMatrixAsLookAt(orieye, oricenter, oriup);
+	//osg::Matrix viewmat;
+	//viewmat.makeLookAt(orieye, oricenter, oriup);
+	//_viewer->setCameraManipulator(_manip.get(), false);
+//	_manip->setByInverseMatrix(viewmat);
+	//_viewer->getCamera()->getViewMatrixAsLookAt(orieye, oricenter, oriup);
 	if (_cubemap2fisheyeCamera && _cubemap2fisheyeCamera.valid())
 	{
 			for (size_t i = 0; i < _cubemapCameras->getNumChildren(); i++)
@@ -470,13 +483,13 @@ void SkyViewFactorEventHandler::computeMouseIntersection(osgUtil::LineSegmentInt
 					RenderSurface* cameraBuffer = (RenderSurface*)_cubemapCameras->getChild(i);
 					//osgDB::writeImageFile(*cameraBuffer->Image(), cameraBuffer->getName() + ".png");
 			}
-		 osg::ref_ptr<osg::Image> fisheye =	cubemap2fisheye(512, 512, getCubemapCameras(_cubemapCameras.get()));
-		 osgDB::writeImageFile(*fisheye, "fisheye2.png");
-		 osgDB::writeImageFile(*_cubemap2fisheyeCamera->Image(), "fisheye.png");
+		 //osg::ref_ptr<osg::Image> fisheye =	cubemap2fisheye(512, 512, getCubemapCameras(_cubemapCameras.get()));
+		 //osgDB::writeImageFile(*fisheye, "fisheye2.png");
+		 //osgDB::writeImageFile(*_cubemap2fisheyeCamera->Image(), "fisheye.png");
 		 double svf = SVFComputeTools::calSVF(_cubemap2fisheyeCamera->Image().get(), false);
 		 //SolarRadiation solarRad = SVFComputeTools::calSolar(_cubemap2fisheyeCamera->Image().get(), _solarParam, observer, observerNormal, _sceneNode);
 		 //printf("SVF=%f\n", svf);
-		 SolarRadiation solarRad = calSolar(observer, observerNormal);
+		 SolarRadiation solarRad = calSolar(geoPos, surfaceNormal);
 		 _resultsCallback(svf, solarRad);
 	}
 }
@@ -515,7 +528,7 @@ bool SkyViewFactorEventHandler::handle(const osgGA::GUIEventAdapter & ea, osgGA:
 	return false;
 }
 
-SolarRadiation SkyViewFactorEventHandler::calSolar(osg::Vec3d pos, osg::Vec3d normal)
+SolarRadiation SkyViewFactorEventHandler::calSolar(osg::Vec3d geoPos, osg::Vec3d normal)
 {
 	auto cubemapCameras = getCubemapCameras(_cubemapCameras.get());
 	osg::Image* img = _cubemap2fisheyeCamera->Image().get();
@@ -523,6 +536,9 @@ SolarRadiation SkyViewFactorEventHandler::calSolar(osg::Vec3d pos, osg::Vec3d no
 	annualRad.Zero();
 	std::vector<SolarRadiation> dailyRads;
 	SolarParam param = *_solarParam;
+	param.lon = geoPos.x();
+	param.lat = geoPos.y();
+	param.elev = max(geoPos.z(), 0);
 	param.slope = GrassSolar::calculateSlope(normal);
 	param.aspect = GrassSolar::calculateAspect(normal);
 	int startDay = param.startDay;
@@ -604,4 +620,22 @@ SolarRadiation SkyViewFactorEventHandler::calSolar(osg::Vec3d pos, osg::Vec3d no
 	if (param.shadowInfo)
 		delete[] param.shadowInfo;
 	return annualRad;
+}
+
+std::tuple<bool, osg::Vec3d, osg::Matrixd> SkyViewFactorEventHandler::getGeoTransform(osg::Vec3d worldPos)
+{
+	osg::Matrixd local2World = osg::Matrixd::identity();
+	osgEarth::MapNode* mapNode = dynamic_cast<osgEarth::MapNode*>(_sceneNode);
+	if (mapNode == nullptr)
+		return std::make_tuple(false, worldPos, local2World);
+	osg::Vec3d geoPos;
+	mapNode->getMapSRS()->transformFromWorld(worldPos, geoPos);
+	mapNode->getMapSRS()->createLocalToWorld(geoPos, local2World);
+	local2World = local2World * osg::Matrixd::translate(-local2World.getTrans());
+	return std::make_tuple(true, geoPos, local2World);
+}
+
+bool SkyViewFactorEventHandler::isEarth()
+{
+	return dynamic_cast<osgEarth::MapNode*>(_sceneNode);
 }

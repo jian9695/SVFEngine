@@ -39,12 +39,14 @@ public:
 	osg::Vec3d _pos;//position of camera
 	osg::Vec3d _dir;//viewing direction of camera
 	osg::Vec3d _up;//the _up vector for use in building a view matrix
+	osg::Matrixd _local2World;
 	osg::Matrixd _viewProjMatrix;
   CubemapSurface(int width, int height, GLenum internalFormat, GLenum sourceFormat, GLenum sourceType, bool allocateImage,
 	 osg::Vec3d dir, osg::Vec3d up, std::string name) :
 		RenderSurface(width, height, internalFormat, sourceFormat, sourceType, allocateImage),
 		_dir(dir), _up(up)
 	{
+		_local2World = osg::Matrixd::identity();
 		osg::Camera::setName(name);
 		addCullCallback(this);
 	}
@@ -52,7 +54,10 @@ public:
 	void update()
 	{
 		osg::Matrix localOffset;
-		localOffset.makeLookAt(_pos, _pos + _dir * 100, _up);
+		osg::Vec3d dir = _dir * _local2World;
+		dir.normalize();
+		osg::Vec3d up = _up * _local2World;
+		localOffset.makeLookAt(_pos, _pos + dir * 100, up);
 		osg::Matrix viewMatrix = localOffset;
 		setReferenceFrame(osg::Camera::ABSOLUTE_RF);
 		float nearDist = 0.1;
@@ -106,7 +111,10 @@ public:
 private:
 	//compute the mouse-model intersection point; compute SVF at this point; update the fisheye HUD and _text labels
 	void computeMouseIntersection(osgUtil::LineSegmentIntersector* ray);
-	SolarRadiation calSolar(osg::Vec3d pos, osg::Vec3d normal);
+	SolarRadiation calSolar(osg::Vec3d geoPos, osg::Vec3d normal);
+	bool isEarth();
+	std::tuple<bool, osg::Vec3d, osg::Matrixd> getGeoTransform(osg::Vec3d worldPos);
+private:
 	osg::ref_ptr<osg::Group> _cubemapCameras;
 	osg::ref_ptr<osgGA::CameraManipulator> _manip;
 	osg::Group* _root;
