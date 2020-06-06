@@ -7,6 +7,6 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseD|x64'">
     <LocalDebuggerWorkingDirectory>$(SolutionDir)\bin</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>./tests/boston_buildings.earth</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>./data/models/OAP3D/OAP3D.osgb</LocalDebuggerCommandArguments>
   </PropertyGroup>
 </Project>
