@@ -37,7 +37,7 @@ SolarInteractiveHandler::SolarInteractiveHandler(
 	_cubemap2fisheyeCamera->setRenderOrder(osg::Camera::PRE_RENDER, _cubemap->getNumChildren());
 
 	//create point label for highlighting intersection point
-	_pointRenderer = PointsRenderer::create();
+	_pointRenderer = new PointsRenderer;
 	_root->addChild(_pointRenderer);
 }
 

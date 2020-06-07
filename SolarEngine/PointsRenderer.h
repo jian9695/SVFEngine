@@ -17,12 +17,12 @@ private:
 	osg::Vec3d _center;
 };
 
-class PointsRenderer : public osg::Group
+class PointsRenderer : public osg::Geode
 {
 private:
-	PointsRenderer() {};
+	osg::Program* m_pointShader;
 public:
-	static PointsRenderer* create();
+	PointsRenderer() {};
 	void pushPoint(const osg::Vec3d& point, const std::string& label);
 	void popPoint();
 };
