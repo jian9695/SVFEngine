@@ -20,3 +20,4 @@
 *.exe
 *.lib
 /bin/Solar3D.exp
+/.vs/Solar3D/v16

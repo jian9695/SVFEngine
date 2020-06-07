@@ -63,7 +63,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(vcpkg_x64)\include;$(vcpkg_x64)\include\QtCore;$(SolutionDir)\SVFEngine</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(vcpkg_x64)\include;$(vcpkg_x64)\include\QtCore;$(SolutionDir)\SolarEngine</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -71,7 +71,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(vcpkg_x64)\lib;$(SolutionDir)\lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>osgEarth.lib;osgEarthFeatures.lib;osgEarthUtil.lib;osgEarthSymbology.lib;osgEarthAnnotation.lib;osg.lib;osgDB.lib;osgUtil.lib;osgViewer.lib;OpenThreads.lib;osgSim.lib;osgTerrain.lib;osgFX.lib;osgShadow.lib;osgManipulator.lib;osgText.lib;osgGA.lib;Qt5Core.lib;gdal.lib;SVFEngine.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>osgEarth.lib;osgEarthFeatures.lib;osgEarthUtil.lib;osgEarthSymbology.lib;osgEarthAnnotation.lib;osg.lib;osgDB.lib;osgUtil.lib;osgViewer.lib;OpenThreads.lib;osgSim.lib;osgTerrain.lib;osgFX.lib;osgShadow.lib;osgManipulator.lib;osgText.lib;osgGA.lib;Qt5Core.lib;gdal.lib;SolarEngine.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseD|x64'">
@@ -83,7 +83,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(vcpkg_x64)\include;$(vcpkg_x64)\include\QtCore;$(SolutionDir)\SVFEngine</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(vcpkg_x64)\include;$(vcpkg_x64)\include\QtCore;$(SolutionDir)\SolarEngine</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -91,14 +91,14 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(vcpkg_x64)\lib;$(SolutionDir)\lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>osgEarth.lib;osgEarthFeatures.lib;osgEarthUtil.lib;osgEarthSymbology.lib;osgEarthAnnotation.lib;osg.lib;osgDB.lib;osgUtil.lib;osgViewer.lib;OpenThreads.lib;osgSim.lib;osgTerrain.lib;osgFX.lib;osgShadow.lib;osgManipulator.lib;osgText.lib;osgGA.lib;Qt5Core.lib;gdal.lib;SVFEngine.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>osgEarth.lib;osgEarthFeatures.lib;osgEarthUtil.lib;osgEarthSymbology.lib;osgEarthAnnotation.lib;osg.lib;osgDB.lib;osgUtil.lib;osgViewer.lib;OpenThreads.lib;osgSim.lib;osgTerrain.lib;osgFX.lib;osgShadow.lib;osgManipulator.lib;osgText.lib;osgGA.lib;Qt5Core.lib;gdal.lib;SolarEngine.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\SVFEngine\SVFEngine.vcxproj">
+    <ProjectReference Include="..\SolarEngine\SolarEngine.vcxproj">
       <Project>{62d74672-958e-43ab-8326-edd104916d15}</Project>
     </ProjectReference>
   </ItemGroup>

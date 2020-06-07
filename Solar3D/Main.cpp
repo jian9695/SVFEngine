@@ -2,7 +2,7 @@
 #ifdef _WIN32 || WIN32 
 #include <Windows.h>
 #endif
-#include "SVFComputeTools.h"
+#include "SolarInteractiveHandler.h"
 #include "ShapeFile.h"
 #include <osg/Notify>
 #include <osgGA/GUIEventHandler>
@@ -54,7 +54,7 @@ using namespace osgEarth::Symbology;
 using namespace osgEarth::Util;
 
 SolarParam m_solarParam;
-osg::ref_ptr<SkyViewFactorEventHandler> m_skyViewHandler;
+osg::ref_ptr<SolarInteractiveHandler> m_skyViewHandler;
 const int UI_FONT_SIZE = 18;
 
 SolarParam createSolarParam()
@@ -70,6 +70,7 @@ SolarParam createSolarParam()
   param.startDay = param.day;
   param.endDay = param.day;
   param.isSingleDay = true;
+  param.isInstantaneous;
   param.elev = 0;
   return param;
 }
@@ -78,13 +79,13 @@ void createControls(CustomControls::ControlCanvas*);
 CustomControls::ImageControl* s_imageControl = 0L;
 
 std::map<std::string, CustomControls::Control*> m_controls;
-osg::ref_ptr<CustomControls::VBox> m_parametersControl;
-osg::ref_ptr<CustomControls::VBox> m_fisheyeControl;
-osg::ref_ptr<CustomControls::VBox> m_resultLabelsControl = new CustomControls::VBox();
-osg::ref_ptr <CustomControls::LabelControl> m_svfLabel;
-osg::ref_ptr <CustomControls::LabelControl> m_globalRadLabel;
-osg::ref_ptr <CustomControls::LabelControl> m_beamRadLabel;
-osg::ref_ptr <CustomControls::LabelControl> m_diffuseRadLabel;
+CustomControls::VBox* m_parametersControl;
+CustomControls::VBox* m_fisheyeControl;
+CustomControls::VBox* m_resultLabelsControl = new CustomControls::VBox();
+CustomControls::LabelControl* m_svfLabel;
+CustomControls::LabelControl* m_globalRadLabel;
+CustomControls::LabelControl* m_beamRadLabel;
+CustomControls::LabelControl* m_diffuseRadLabel;
 
 class ParamControlBase : public CustomControls::HBox
 {
@@ -96,10 +97,14 @@ public:
     setName(name);
     m_controls[m_name] = (CustomControls::Control*)this;
   }
-  osg::ref_ptr<CustomControls::HSliderControl> m_slider;
-  osg::ref_ptr<CustomControls::CheckBoxControl> m_check;
-  osg::ref_ptr <CustomControls::LabelControl> m_nameLabel;
+  CustomControls::HSliderControl* m_slider;
+  CustomControls::CheckBoxControl* m_check;
+  CustomControls::LabelControl* m_nameLabel;
   std::string m_name;
+
+  virtual void onValueChanged(CustomControls::Control* control, float value) {}
+
+  virtual void onValueChanged(CustomControls::Control* control, bool value) {}
 };
 
 bool GetSingleDayMode() 
@@ -146,6 +151,28 @@ void ResultsUpdated(float svf, SolarRadiation rad)
   printf("Global: %f\n", rad.global);
 }
 
+class ParamControlEventHandler : public CustomControls::ControlEventHandler
+{
+public:
+  ParamControlBase* _paramControl;
+  ParamControlEventHandler(ParamControlBase* paramControl) :
+    _paramControl(paramControl)
+  {
+
+  }
+  virtual void onValueChanged(CustomControls::Control* control, float value)
+  {
+    if (_paramControl)
+      _paramControl->onValueChanged(control, value);
+  }
+
+  virtual void onValueChanged(CustomControls::Control* control, bool value)
+  {
+    if (_paramControl)
+      _paramControl->onValueChanged(control, value);
+  }
+};
+
 class ParamControl : public ParamControlBase, public CustomControls::ControlEventHandler
 {
 public:
@@ -161,7 +188,7 @@ public:
     m_nameLabel->setVertAlign(CustomControls::Control::ALIGN_CENTER);
     m_nameLabel->setTextBackdropOffset(3);
     m_nameLabel->setFontSize(UI_FONT_SIZE);
-    addControl(m_nameLabel.get());
+    addControl(m_nameLabel);
 
   }
   ParamControl(std::string name, std::string label, float min, float max, float value, bool isInteger)
@@ -174,12 +201,12 @@ public:
     m_slider->setHeight(UI_FONT_SIZE);
     m_slider->setWidth(200);
     m_slider->setName(name);
-    m_slider->addEventHandler(this);
+    m_slider->addEventHandler(new ParamControlEventHandler(this));
     m_slider->setHorizAlign(CustomControls::Control::ALIGN_LEFT);
     m_valueLabel = new CustomControls::LabelControl(name);
     m_valueLabel->setText(toString(value));
-    addControl(m_slider.get());
-    addControl(m_valueLabel.get());
+    addControl(m_slider);
+    addControl(m_valueLabel);
   }
 
   ParamControl(std::string name, std::string label, bool isChecked)
@@ -191,8 +218,8 @@ public:
     //slider->setBackColor(.6, 0, 0, 1);
     m_check->setHeight(10);
     m_check->setName(name);
-    m_check->addEventHandler(this);
-    addControl(m_check.get());
+    m_check->addEventHandler(new ParamControlEventHandler(this));
+    addControl(m_check);
   }
 
   ParamControl(std::string name, std::string label, float min, float max, float value, bool isInteger, bool isChecked)
@@ -206,7 +233,7 @@ public:
     m_slider->setHeight(10);
     m_slider->setWidth(200);
     m_slider->setName(name);
-    m_slider->addEventHandler(this);
+    m_slider->addEventHandler(new ParamControlEventHandler(this));
     m_valueLabel = new CustomControls::LabelControl(name);
     m_valueLabel->setText(toString(value));
     m_valueLabel->setFontSize(UI_FONT_SIZE);
@@ -214,14 +241,14 @@ public:
     //slider->setBackColor(.6, 0, 0, 1);
     m_check->setHeight(10);
     m_check->setName(name);
-    m_check->addEventHandler(this);
-    addControl(m_slider.get());
-    addControl(m_valueLabel.get());
-    addControl(m_check.get());
+    m_check->addEventHandler(new ParamControlEventHandler(this));
+    addControl(m_slider);
+    addControl(m_valueLabel);
+    addControl(m_check);
   }
 
 private:
-  osg::ref_ptr<CustomControls::LabelControl> m_valueLabel;
+  CustomControls::LabelControl* m_valueLabel;
   bool m_isInteger;
   std::string toString(float value)
   {
@@ -333,71 +360,72 @@ private:
 
 void createControls(CustomControls::ControlCanvas* cs)
 {
-  osg::ref_ptr<CustomControls::VBox> ul = new CustomControls::VBox();
+  CustomControls::VBox* ul = new CustomControls::VBox();
   ul->setPosition(0, 0);
   ul->setPadding(5);
   int maxLabelLen = 20;
-  osg::Vec4 backgroundColor(0.0, 0.0, 1.0, 0.3);
+  osg::Vec4 backgroundColor(0.0, 0.0, 0.0, 0.6);
   osg::Vec4 borderColor(0.0, 0.0, 0.0, 1.0);
+  osg::Vec4 fontColor(1, 1, 1, 1);
 
-  osg::ref_ptr<CustomControls::VBox> togglesControl = new CustomControls::VBox();
-  osg::ref_ptr<CustomControls::HBox> toggleParameters = new ParamControl("ToggleParameters", "Toggle Hide/Show Parameters", true);
-  osg::ref_ptr<CustomControls::HBox> toggleResults = new ParamControl("ToggleResults", "Toggle Hide/Show Results", true);
-  osg::ref_ptr<CustomControls::HBox> toggleFisheye = new ParamControl("ToggleFisheye", "Toggle Hide/Show Fisheye", true);
-  togglesControl->addControl(toggleParameters.get());
-  togglesControl->addControl(toggleResults.get());
-  togglesControl->addControl(toggleFisheye.get());
+  CustomControls::VBox* togglesControl = new CustomControls::VBox();
+  CustomControls::HBox* toggleParameters = new ParamControl("ToggleParameters", "Toggle Hide/Show Parameters", true);
+  CustomControls::HBox* toggleResults = new ParamControl("ToggleResults", "Toggle Hide/Show Results", true);
+  CustomControls::HBox* toggleFisheye = new ParamControl("ToggleFisheye", "Toggle Hide/Show Fisheye", true);
+  togglesControl->addControl(toggleParameters);
+  togglesControl->addControl(toggleResults);
+  togglesControl->addControl(toggleFisheye);
   togglesControl->setBackColor(backgroundColor);
   togglesControl->setBorderColor(borderColor);
 
   m_parametersControl = new CustomControls::VBox();
   m_parametersControl->setBackColor(backgroundColor);
   m_parametersControl->setBorderColor(borderColor);
-  osg::ref_ptr <CustomControls::LabelControl> titleLabel = new CustomControls::LabelControl("GRASS GIS r.sun parameters");
+  CustomControls::LabelControl* titleLabel = new CustomControls::LabelControl("GRASS GIS r.sun parameters", fontColor);
   titleLabel->setFontSize(UI_FONT_SIZE);
-  osg::ref_ptr<CustomControls::HBox> linkieSlider = new ParamControl("Linkie", PadRight("Linkie", maxLabelLen), 3, 8, m_solarParam.linke, true);
-  osg::ref_ptr<CustomControls::HBox> startDaySlider = new ParamControl("StartDay", PadRight("Start Day", maxLabelLen), 1, 365, m_solarParam.startDay, true);
-  osg::ref_ptr<CustomControls::HBox> endDaySlider = new ParamControl("EndDay", PadRight("End Day", maxLabelLen), 1, 365, m_solarParam.endDay, true);
-  osg::ref_ptr<CustomControls::HBox> isSingleDayCheck = new ParamControl("SingleDayMode", PadRight("Single Day Mode", maxLabelLen), m_solarParam.isSingleDay);
-  osg::ref_ptr<CustomControls::HBox> timeStepSlider = new ParamControl("TimeStep", PadRight("Time Step (hours)", maxLabelLen), 0.1, 1, m_solarParam.time_step, false);
-  osg::ref_ptr<CustomControls::HBox> latSlider = new ParamControl("Latitude", PadRight("Default Latitude", maxLabelLen), -90, 90, m_solarParam.lat, false, true);
-  osg::ref_ptr<CustomControls::HBox> elevSlider = new ParamControl("Elevation", PadRight("Base Elevation", maxLabelLen), 0, 9999, m_solarParam.elev, false, true);
-  m_parametersControl->addControl(titleLabel.get());
-  m_parametersControl->addControl(isSingleDayCheck.get());
-  m_parametersControl->addControl(startDaySlider.get());
-  m_parametersControl->addControl(endDaySlider.get());
-  m_parametersControl->addControl(latSlider.get());
-  m_parametersControl->addControl(elevSlider.get());
-  m_parametersControl->addControl(timeStepSlider.get());
-  m_parametersControl->addControl(linkieSlider.get());
+  CustomControls::HBox* linkieSlider = new ParamControl("Linkie", PadRight("Linkie", maxLabelLen), 3, 8, m_solarParam.linke, true);
+  CustomControls::HBox* startDaySlider = new ParamControl("StartDay", PadRight("Start Day", maxLabelLen), 1, 365, m_solarParam.startDay, true);
+  CustomControls::HBox* endDaySlider = new ParamControl("EndDay", PadRight("End Day", maxLabelLen), 1, 365, m_solarParam.endDay, true);
+  CustomControls::HBox* isSingleDayCheck = new ParamControl("SingleDayMode", PadRight("Single Day Mode", maxLabelLen), m_solarParam.isSingleDay);
+  CustomControls::HBox* timeStepSlider = new ParamControl("TimeStep", PadRight("Time Step (hours)", maxLabelLen), 0.1, 1, m_solarParam.time_step, false);
+  CustomControls::HBox* latSlider = new ParamControl("Latitude", PadRight("Default Latitude", maxLabelLen), -90, 90, m_solarParam.lat, false, true);
+  CustomControls::HBox* elevSlider = new ParamControl("Elevation", PadRight("Base Elevation", maxLabelLen), 0, 9999, m_solarParam.elev, false, true);
+  m_parametersControl->addControl(titleLabel);
+  m_parametersControl->addControl(isSingleDayCheck);
+  m_parametersControl->addControl(startDaySlider);
+  m_parametersControl->addControl(endDaySlider);
+  m_parametersControl->addControl(latSlider);
+  m_parametersControl->addControl(elevSlider);
+  m_parametersControl->addControl(timeStepSlider);
+  m_parametersControl->addControl(linkieSlider);
 
   m_resultLabelsControl = new CustomControls::VBox();
   m_resultLabelsControl->setBackColor(backgroundColor);
   m_resultLabelsControl->setBorderColor(borderColor);
+  m_resultLabelsControl->setWidth(320);
 
-  osg::Vec4 resultFontColor(1, 1, 0, 1);
-  m_svfLabel = new CustomControls::LabelControl("SVF:", resultFontColor, UI_FONT_SIZE);
-  m_globalRadLabel = new CustomControls::LabelControl("Global radiation:", resultFontColor, UI_FONT_SIZE);
-  m_beamRadLabel = new CustomControls::LabelControl("Beam radiation:", resultFontColor, UI_FONT_SIZE);
-  m_diffuseRadLabel = new CustomControls::LabelControl("Diffuse radiation:", resultFontColor, UI_FONT_SIZE);
+  m_svfLabel = new CustomControls::LabelControl("SVF:", fontColor, UI_FONT_SIZE);
+  m_globalRadLabel = new CustomControls::LabelControl("Global radiation:", fontColor, UI_FONT_SIZE);
+  m_beamRadLabel = new CustomControls::LabelControl("Beam radiation:", fontColor, UI_FONT_SIZE);
+  m_diffuseRadLabel = new CustomControls::LabelControl("Diffuse radiation:", fontColor, UI_FONT_SIZE);
 
-  m_resultLabelsControl->addControl(m_svfLabel.get());
-  m_resultLabelsControl->addControl(m_globalRadLabel.get());
-  m_resultLabelsControl->addControl(m_beamRadLabel.get());
-  m_resultLabelsControl->addControl(m_diffuseRadLabel.get());
+  m_resultLabelsControl->addControl(m_svfLabel);
+  m_resultLabelsControl->addControl(m_globalRadLabel);
+  m_resultLabelsControl->addControl(m_beamRadLabel);
+  m_resultLabelsControl->addControl(m_diffuseRadLabel);
 
   m_fisheyeControl = new CustomControls::VBox();
   //m_fisheyeControl->setBackColor(backgroundColor);
   m_fisheyeControl->setBorderColor(borderColor);
-  osg::ref_ptr<CustomControls::ImageControl> fishEyeImg = new CustomControls::ImageControl(m_skyViewHandler->_cubemap2fisheyeCamera->Texture());
+  CustomControls::ImageControl* fishEyeImg = new CustomControls::ImageControl(m_skyViewHandler->_cubemap2fisheyeCamera->Texture());
   fishEyeImg->setSize(320, 320);
-  m_fisheyeControl->addControl(fishEyeImg.get());
-  ul->addControl(togglesControl.get());
-  ul->addControl(m_parametersControl.get());
-  ul->addControl(m_resultLabelsControl.get());
-  ul->addControl(m_fisheyeControl.get());
+  m_fisheyeControl->addControl(fishEyeImg);
+  ul->addControl(togglesControl);
+  ul->addControl(m_parametersControl);
+  ul->addControl(m_resultLabelsControl);
+  ul->addControl(m_fisheyeControl);
 
-  cs->addControl(ul.get());
+  cs->addControl(ul);
 }
 
 int main(int argc, char** argv)
@@ -455,7 +483,7 @@ int main(int argc, char** argv)
 
   viewer.setCameraManipulator(manip.get());
 
-  m_skyViewHandler = new SkyViewFactorEventHandler(mapNode ? mapNode : scene.get(), root.get(), manip.get(), &viewer, &m_solarParam, ResultsUpdated);
+  m_skyViewHandler = new SolarInteractiveHandler(scene, root, mapNode, manip, &viewer, &m_solarParam, ResultsUpdated);
  
   // create a surface to house the controls
   CustomControls::ControlCanvas* cs = CustomControls::ControlCanvas::getOrCreate(&viewer);
@@ -465,7 +493,7 @@ int main(int argc, char** argv)
 
   // zoom to a good startup position
 
-  viewer.addEventHandler(m_skyViewHandler.get());
+  viewer.addEventHandler(m_skyViewHandler);
 
   viewer.addEventHandler(new osgViewer::ThreadingHandler);
 
@@ -477,6 +505,9 @@ int main(int argc, char** argv)
 
   // add the LOD Scale handler
   viewer.addEventHandler(new osgViewer::LODScaleHandler);
+
+  // add the state manipulator
+  viewer.addEventHandler(new osgGA::StateSetManipulator(viewer.getCamera()->getOrCreateStateSet()));
 
   unsigned int width, height;
   osg::GraphicsContext::ScreenIdentifier main_screen_id;
