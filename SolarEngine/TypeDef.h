@@ -5,6 +5,7 @@
 
 #include <string>
 #include <math.h>
+#include <osg/Vec3d>
 
 //structure of solar radiation result
 struct SolarRadiation
@@ -196,3 +197,16 @@ struct SolarParam
 	}
 
 };
+
+struct SolarRadiationPoint : public SolarParam, public SolarRadiation
+{
+	osg::Vec3d pos;
+	SolarRadiationPoint() {}
+	SolarRadiationPoint(const osg::Vec3d position, const SolarParam& param, const SolarRadiation& rad)
+	{
+		pos = position;
+		*((SolarParam*)this) = param;
+		*((SolarRadiation*)this) = rad;
+	}
+};
+

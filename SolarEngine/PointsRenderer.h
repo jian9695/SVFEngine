@@ -2,28 +2,43 @@
 #include <osg/Geode>
 #include <osg/Vec3d>
 #include <osg/PagedLOD>
+#include "Utils.h"
 
-//Render a point at a 3D position picked by mouse double-click 
+enum ActionTypeEnum { PUSH, POP };
+struct Action : SolarRadiationPoint
+{
+	ActionTypeEnum actionType;
+	Action() {}
+	Action(ActionTypeEnum type, SolarRadiationPoint point) { actionType = type; *((SolarRadiationPoint*)this) = point; }
+};
 
 class TextLOD : public osg::PagedLOD
 {
 public:
-	TextLOD(osg::Vec3d center) { _center = center; };
+	TextLOD(const SolarRadiationPoint& point) { _point = point; };
 	osg::BoundingSphere computeBound() const
 	{
-		return osg::BoundingSphere(_center, 100);
+		return osg::BoundingSphere(_point.pos, 100);
 	}
-private:
-	osg::Vec3d _center;
+public:
+	SolarRadiationPoint _point;
 };
 
-class PointsRenderer : public osg::Geode
+class PointsRenderer : public osg::Group
 {
-private:
-	osg::Program* m_pointShader;
 public:
 	PointsRenderer() {};
-	void pushPoint(const osg::Vec3d& point, const std::string& label);
+	void pushPoint(const osg::Vec3d& point, const SolarParam& param, const SolarRadiation& rad);
+	void pushPoint(const SolarRadiationPoint& point);
 	void popPoint();
+	void undo();
+	void redo();
+private:
+	std::vector<Action> m_doStack;
+	std::vector<Action> m_undoStack;
+private:
+	void doAction(const Action& action);
+	void pushPointInternal(const SolarRadiationPoint& point);
+	void popPointInternal();
 };
 

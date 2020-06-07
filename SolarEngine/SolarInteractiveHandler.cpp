@@ -114,15 +114,15 @@ void SolarInteractiveHandler::computeMouseIntersection(osgUtil::LineSegmentInter
 		//printf("SVF=%f\n", svf);
 		SolarRadiation solarRad = calSolar(geoPos, surfaceNormal);
 		_resultsCallback(svf, solarRad);
-		_pointRenderer->pushPoint(worldPos, Utils::value2String(solarRad.global, 2));
+		_pointRenderer->pushPoint(worldPos, *_solarParam, solarRad);
 	}
 }
 
 bool SolarInteractiveHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa)
 {
-	if (ea.getEventType() == osgGA::GUIEventAdapter::KEYDOWN)
-		return false;
 	if (ea.getEventType() == osgGA::GUIEventAdapter::KEYUP)
+		return false;
+	if (ea.getEventType() == osgGA::GUIEventAdapter::MOVE)
 		return false;
 	if (ea.getEventType() == osgGA::GUIEventAdapter::DOUBLECLICK)
 		return false;
@@ -130,22 +130,36 @@ bool SolarInteractiveHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GU
 		return false;
 	if (ea.getEventType() == osgGA::GUIEventAdapter::FRAME)
 		return false;
-	if (ea.getEventType() == osgGA::GUIEventAdapter::FRAME)
-		return false;
 	osgViewer::Viewer* viewer = dynamic_cast<osgViewer::Viewer*>(&aa);
 	if (!viewer)
 		return false;
-	osg::Vec3d orieye, oricenter, oriup;
-	viewer->getCamera()->getViewMatrixAsLookAt(orieye, oricenter, oriup);
-	if (ea.getButtonMask() == osgGA::GUIEventAdapter::LEFT_MOUSE_BUTTON && (ea.getModKeyMask() & ea.MODKEY_CTRL) && ea.getEventType() == osgGA::GUIEventAdapter::PUSH)
-		//if ((ea.getModKeyMask() & ea.MODKEY_CTRL) != 0 && ea.getEventType() == osgGA::GUIEventAdapter::PUSH)
+	if (ea.getModKeyMask() & ea.MODKEY_CTRL)
 	{
-		osg::ref_ptr<osgUtil::LineSegmentIntersector> ray = new osgUtil::LineSegmentIntersector(osgUtil::Intersector::PROJECTION, ea.getXnormalized(), ea.getYnormalized());
-		osgUtil::IntersectionVisitor visitor(ray);
-		viewer->getCamera()->accept(visitor);
-		computeMouseIntersection(ray.get());
+		if (ea.getButtonMask() == osgGA::GUIEventAdapter::LEFT_MOUSE_BUTTON && ea.getEventType() == osgGA::GUIEventAdapter::PUSH)
+		{
+			osg::ref_ptr<osgUtil::LineSegmentIntersector> ray = new osgUtil::LineSegmentIntersector(osgUtil::Intersector::PROJECTION, ea.getXnormalized(), ea.getYnormalized());
+			osgUtil::IntersectionVisitor visitor(ray);
+			viewer->getCamera()->accept(visitor);
+			computeMouseIntersection(ray.get());
+		}
+		else if (osgGA::GUIEventAdapter::KEYDOWN)
+		{
+			int key = ea.getUnmodifiedKey();
+			if (key == osgGA::GUIEventAdapter::KEY_Delete || key == osgGA::GUIEventAdapter::KEY_KP_Delete || key == osgGA::GUIEventAdapter::KEY_BackSpace || key == 65454)
+			{
+				_pointRenderer->popPoint();
+			}
+			else if (key == osgGA::GUIEventAdapter::KEY_Z)
+			{
+				_pointRenderer->undo();
+			}
+			else if (key == osgGA::GUIEventAdapter::KEY_Y)
+			{
+				_pointRenderer->redo();
+			}
+			//printf("%d,%d,%d\n", key, osgGA::GUIEventAdapter::KEY_Z, osgGA::GUIEventAdapter::KEY_Y);
+		}
 	}
-
 	return false;
 }
 
@@ -180,7 +194,7 @@ SolarRadiation SolarInteractiveHandler::calSolar(osg::Vec3d geoPos, osg::Vec3d n
 		for (int n = 0; n < sunVecs.size(); n++)
 		{
 			SunVector sunVec = sunVecs[n];
-			param.shadowInfo[n] = _cubemap->isShadowed(sunVec.alt, sunVec.azimuth);
+			param.shadowInfo[n] = _cubemap->isShadowed((double)sunVec.alt, (double)sunVec.azimuth);
 		}
 
 		param.day = day;
