@@ -28,10 +28,10 @@
 #include <osg/Notify>
 #include <osgDB/ReadFile>
 #include <osgGA/GUIEventHandler>
+#include <osgViewer/ViewerEventHandlers>
 #include <osgViewer/Viewer>
 #include <osgEarth/Registry>
 #include <osgEarthUtil/EarthManipulator>
-//#include <osgEarthUtil/Controls>
 #include <osgEarthUtil/ExampleResources>
 #include <osgEarthSymbology/Color>
 #include "CustomControls.h"
@@ -132,22 +132,14 @@ std::string PadRight(std::string str, const size_t num, const char paddingChar =
   return str;
 }
 
-std::string Value2String(float value, int precision)
-{
-  std::stringstream buf;
-  buf.precision(precision);
-  buf << std::fixed << value;
-  return buf.str();
-}
-
 void ResultsUpdated(float svf, SolarRadiation rad)
 {
-  m_svfLabel->setText("SVF: " + Value2String(svf, 3));
+  m_svfLabel->setText("SVF: " + Utils::value2String(svf, 3));
   std::string unit = " [kWh/m2]";
   rad = rad / 1000;
-  m_globalRadLabel->setText("Global radiation: " + Value2String(rad.global, 3) + unit);
-  m_beamRadLabel->setText("Beam radiation: " + Value2String(rad.beam, 3) + unit);
-  m_diffuseRadLabel->setText("Diffuse radiation: " + Value2String(rad.diffuse, 3) + unit);
+  m_globalRadLabel->setText("Global radiation: " + Utils::value2String(rad.global, 3) + unit);
+  m_beamRadLabel->setText("Beam radiation: " + Utils::value2String(rad.beam, 3) + unit);
+  m_diffuseRadLabel->setText("Diffuse radiation: " + Utils::value2String(rad.diffuse, 3) + unit);
   printf("Global: %f\n", rad.global);
 }
 
@@ -417,7 +409,7 @@ void createControls(CustomControls::ControlCanvas* cs)
   m_fisheyeControl = new CustomControls::VBox();
   //m_fisheyeControl->setBackColor(backgroundColor);
   m_fisheyeControl->setBorderColor(borderColor);
-  CustomControls::ImageControl* fishEyeImg = new CustomControls::ImageControl(m_skyViewHandler->_cubemap2fisheyeCamera->Texture());
+  CustomControls::ImageControl* fishEyeImg = new CustomControls::ImageControl(m_skyViewHandler->FisheyeSurface()->Texture());
   fishEyeImg->setSize(320, 320);
   m_fisheyeControl->addControl(fishEyeImg);
   ul->addControl(togglesControl);

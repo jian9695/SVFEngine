@@ -35,6 +35,9 @@ email: hofierka@geomodel.sk,marcel.suri@jrc.it,suri@geomodel.sk,
 #include <sstream>
 #include <osg/Matrix>
 #include <osg/Geometry>
+#include <osgUtil/IntersectionVisitor>
+#include <osg/LineSegment>
+#include <osgUtil/LineSegmentIntersector>
 
 #define M_PI 3.1415926
 #define M2_PI    2. * M_PI
@@ -130,194 +133,6 @@ void printfVec3(osg::Vec3 v)
 		printf("(%f,%f,%f)\n", v.x(), v.y(), v.z());
 }
 
-osg::Vec3 computeOrthogonalVector(const osg::Vec3& direction)
-{
-		float length = direction.length();
-		osg::Vec3 orthogonalVector = direction ^ osg::Vec3(0.0f, 1.0f, 0.0f);
-		if (orthogonalVector.normalize() < length*0.5f)
-		{
-				orthogonalVector = direction ^ osg::Vec3(0.0f, 0.0f, 1.0f);
-				orthogonalVector.normalize();
-		}
-		return orthogonalVector;
-}
-
-
-void calLightMatrix(osg::Vec3 lightpos, osg::BoundingSphere& bb, osg::Matrixf& matView, osg::BoundingBox& frustrum)
-{
-
-		// make an orthographic projection
-		osg::Vec3 lightDir(lightpos.x(), lightpos.y(), lightpos.z());
-		lightDir.normalize();
-
-		// set the position far away along the light direction
-		osg::Vec3 position = bb.center() + lightDir * bb.radius() * 2.0;
-
-		float centerDistance = (position - bb.center()).length();
-
-		float znear = centerDistance - bb.radius();
-		float zfar = centerDistance + bb.radius();
-		float zNearRatio = 0.001f;
-		if (znear < zfar*zNearRatio) znear = zfar * zNearRatio;
-
-		float top = bb.radius();
-		float right = top;
-
-		frustrum = osg::BoundingBox(-right, -top, -1000000, right, top, 0);
-		matView = osg::Matrixd::lookAt(position, bb.center(), computeOrthogonalVector(lightDir));
-}
-
-bool frustrumIntersects(osg::BoundingBox frustrum, osg::BoundingSphere bs)
-{
-		if (bs.center().x() + bs.radius() < frustrum.xMin() ||
-				bs.center().x() - bs.radius() > frustrum.xMax() ||
-				bs.center().y() + bs.radius() < frustrum.yMin() ||
-				bs.center().y() - bs.radius() > frustrum.yMax() ||
-				bs.center().z() + bs.radius() < frustrum.zMin() ||
-				bs.center().z() - bs.radius() > frustrum.zMax())
-		{
-				return false;
-		}
-		return true;
-}
-
-
-osg::Vec3d GrassSolar::solarAngle2Vector(double alt, double azimuth)
-{
-		osg::Vec3d lightDir;
-		lightDir.z() = cos(osg::DegreesToRadians(90.0 - alt));
-		double projectedLenghOnXY = cos(osg::DegreesToRadians(alt));
-		lightDir.y() = projectedLenghOnXY * cos(osg::DegreesToRadians(azimuth));
-		//lightDir.x() = sqrt((projectedLenghOnXY * projectedLenghOnXY) - lightDir.y() * lightDir.y());
-		lightDir.x() = projectedLenghOnXY * cos(osg::DegreesToRadians(90 - azimuth));
-		lightDir.normalize();
-		return lightDir;
-}
-
-//Angle between vector (x,y) and the positive Y axis (0,1) with origin at (0,0)
-double GrassSolar::calAzimuthAngle(double x, double y)
-{
-	double x2 = 0.0;
-	double y2 = 1.0;
-	double dot = x * x2 + y * y2;      //# dot product
-	double det = x * y2 - y * x2;      //# determinant
-	double angle = osg::RadiansToDegrees(atan2(det, dot));  //# atan2(y, x) or atan2(sin, cos)
-	if (angle < 0)
-		angle += 360;
-	return angle;
-}
-
-std::vector<osg::Vec3d> GrassSolar::sunVector2LightDir(std::vector<SunVector>& sunvectors)
-{
-		std::vector<osg::Vec3d> vsuns;
-		for (int i = 0; i < sunvectors.size(); i++)
-		{
-				vsuns.push_back(solarAngle2Vector(sunvectors[i].alt, sunvectors[i].azimuth));
-		}
-		return vsuns;
-}
-
-//The aspect categories represent the number degrees of east and they increase counterclockwise: 90deg is North, 180 is West, 270 is South 360 is East.
-//The aspect value 0 is used to indicate undefined aspect in flat areas with slope=0. 
-//
-//The slope output raster map contains slope values, 
-//stated in degrees of inclination from the horizontal if format=degrees option (the default) is chosen, 
-//and in percent rise if format=percent option is chosen. Category and color table files are generated. 
-//***********N90
-
-//*******W180    E360 
-
-//***********S270
-
-//***********N0
-
-//*******W270    E90 
-
-//***********S180
-//tmpval.elev = 0;
-//if (tmpval.aspect != 0.) {
-//	if (tmpval.aspect < 90.)
-//		tmpval.aspect = 90. - tmpval.aspect;
-//	else
-//		tmpval.aspect = 450. - tmpval.aspect;
-//}
-
-double GrassSolar::calculateAspect(osg::Vec3d normal)
-{
-		double aspect = 0;
-		if (normal.x() == 0 && normal.y() == 0)
-				return aspect;
-		osg::Vec3d normalxy = normal;
-	 normalxy.normalize();
-		normalxy.z() = 0;
-		normalxy.normalize();
-		double cosa = acos(normalxy * osg::Vec3d(1, 0, 0));
-		aspect = osg::RadiansToDegrees(cosa);
-		if (normal.y() < 0)
-				aspect = 360 - aspect;
-		return aspect;
-}
-
-double GrassSolar::calculateSlope(osg::Vec3d normal)
-{
-		double cosa = acos(normal * osg::Vec3d(0, 0, 1));
-		double slope = osg::RadiansToDegrees(cosa);
-		return slope;
-}
-
-//slope_radians = ATAN ( ¡Ì ( [dz/dx]2 + [dz/dy]2 ) ) 
-float calculateSlope(osg::Vec4* mapvertices, unsigned int width, unsigned int height, unsigned int x, unsigned int y)
-{
-		unsigned int x2 = x + 1;
-		if (x2 > width - 1)
-				x2 = x - 1;
-		unsigned int y2 = y + 1;
-		if (y2 > height - 1)
-				y2 = y - 1;
-		osg::Vec4 px = mapvertices[y*width + x2];
-		osg::Vec4 py = mapvertices[y2*width + x];
-		osg::Vec4 p = mapvertices[y*width + x];
-		float xlen = (px - p).length();
-		float dzx = 0;
-		float dzy = 0;
-		if (xlen > 0)
-		{
-				dzx = (px.z() - p.z()) / xlen;
-				dzx = dzx * dzx;
-		}
-
-		float ylen = (px - p).length();
-		if (ylen > 0)
-		{
-				dzy = (py.z() - p.z()) / ylen;
-				dzy = dzy * dzy;
-		}
-
-		float slope = atan(sqrt(dzx + dzy));
-		slope = osg::DegreesToRadians(slope);
-		return slope;
-}
-
-float calTriangleArea(osg::Vec3 p0, osg::Vec3 p1, osg::Vec3 p2)
-{
-
-		float first, second, third;
-		first = (p0 - p1).length();
-		second = (p0 - p2).length();
-		third = (p1 - p2).length();
-		float s, area;
-		s = (first + second + third) / 2;
-
-		area = sqrt(s*(s - first)*(s - second)*(s - third));
-		if (area != area)
-		{
-				area = 0;
-		}
-		return area;
-}
-
-
-unsigned int curTimeStep;
 SolarRadiation GrassSolar::calculateSolarRadiation(SolarParam& solar_param)
 {
     int i, j, l;
@@ -343,7 +158,7 @@ SolarRadiation GrassSolar::calculateSolarRadiation(SolarParam& solar_param)
 	}
 
 	SolarRadiation result;
-	curTimeStep = 0;
+	_curTimeStep = 0;
 	//tmpval.aspect = 90;
 	//tmpval.slope = 0;
 
@@ -566,7 +381,7 @@ void GrassSolar::joules2(TempVariables& tmpval,const bool& isInstaneous,const do
 				sunvec.alt = 0;
 				sunvec.time = tmpval.lum_time;
 				SunVectors.push_back(sunvec);
-				curTimeStep++;
+				_curTimeStep++;
 			}
 			return;
 		}
@@ -621,14 +436,14 @@ void GrassSolar::joules2(TempVariables& tmpval,const bool& isInstaneous,const do
 			sunvec.alt = rad2deg2(tmpval.h0);
 			sunvec.time = tmpval.lum_time;
 			SunVectors.push_back(sunvec);
-			curTimeStep++;
+			_curTimeStep++;
 		}
 		else if(tmpval.shadowInfo)
 		{
-			tmpval.tien = tmpval.shadowInfo[curTimeStep];
+			tmpval.tien = tmpval.shadowInfo[_curTimeStep];
 		}
 
-		curTimeStep++;
+		_curTimeStep++;
 	    s0 = lumcline2(tmpval);
 
 
@@ -975,7 +790,7 @@ std::vector<SunVector> GrassSolar::getSunVectors(SolarParam& sparam)
 SolarRadiation GrassSolar::calculateSolarRadiation(SolarParam& solar_param, osg::Node* sceneNode, osg::Vec3d pos)
 {
 		std::vector<SunVector> sunVectors = getSunVectors(solar_param);
-		std::vector<osg::Vec3d> lightDirs = sunVector2LightDir(sunVectors);
+		std::vector<osg::Vec3d> lightDirs = Utils::sunVector2LightDir(sunVectors);
 
 		solar_param.shadowInfo = new bool[lightDirs.size()];
 		std::string shadowMasks = "";

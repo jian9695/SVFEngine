@@ -1,4 +1,4 @@
-#include "ScreenOverlay.h"
+#include "RenderSurface.h"
 #include <osgDB/ReadFile>
 
 ScreenOverlay::ScreenOverlay(const char* vertexShader, const char* fragmentShader)

@@ -1,5 +1,7 @@
 #pragma once
+#ifdef _WIN32 || WIN32 
 #include <Windows.h>
+#endif
 #include <osg/Texture2D>
 #include <osg/Geometry>
 #include <osg/Camera>
