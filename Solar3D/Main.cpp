@@ -62,7 +62,7 @@ SolarParam createSolarParam()
   SolarParam param;
   param.aspect = 270;
   param.slope = 0;
-  param.lon = 122.1204;
+  param.lon = -9999;
   param.lat = 37.5131;
   param.day = 183;
   param.time_step = 1;

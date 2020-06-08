@@ -21,7 +21,7 @@ public:
 	double elev, slope, aspect;
 	double lum_C11, lum_C13, lum_C22, lum_C31, lum_C33, lum_Lx, lum_Ly, lum_Lz;
 	double lum_p, sunrise_time, sunset_time, h0, tanh0, A0, angle;
-	double longitude, latitude, lum_time, declination;
+	double latitude, lum_time, declination;
 	double sinlat, coslat, sindecl, cosdecl;
 	double longit_l, latid_l, cos_u, cos_v, sin_u, sin_v;
 	double sin_phi_l, tan_lam_l, lum_C31_l, lum_C33_l;

@@ -1,5 +1,7 @@
 #include "SolarInteractiveHandler.h"
 #include <osg/ComputeBoundsVisitor>
+#include <osgDB/WriteFile>
+#include <ctime>
 
 SolarInteractiveHandler::SolarInteractiveHandler(
 	osg::Node* sceneNode,
@@ -99,23 +101,28 @@ void SolarInteractiveHandler::computeMouseIntersection(osgUtil::LineSegmentInter
 	}
 	_cubemap->setNodeMask(false);
 	//_viewer->getCamera()->setNodeMask(true);
-	if (_cubemap2fisheyeCamera)
-	{
-		//for (size_t i = 0; i < _cubemap->getNumChildren(); i++)
-		//{
-				//RenderSurface* cameraBuffer = (RenderSurface*)_cubemap->getChild(i);
-				//osgDB::writeImageFile(*cameraBuffer->Image(), cameraBuffer->getName() + ".png");
-		//}
-	 //osg::ref_ptr<osg::Image> fisheye =	cubemap2fisheye(512, 512, getCubemapCameras(_cubemapCameras.get()));
-	 //osgDB::writeImageFile(*fisheye, "fisheye2.png");
-	 //osgDB::writeImageFile(*_cubemap2fisheyeCamera->Image(), "fisheye.png");
-		double svf = Utils::calSVF(_cubemap2fisheyeCamera->Image().get(), false);
-		//SolarRadiation solarRad = SolarInteractiveHandler::calSolar(_cubemap2fisheyeCamera->Image().get(), _solarParam, observer, observerNormal, _sceneNode);
-		//printf("SVF=%f\n", svf);
-		SolarRadiation solarRad = calSolar(geoPos, surfaceNormal);
-		_resultsCallback(svf, solarRad);
-		_pointRenderer->pushPoint(worldPos, *_solarParam, solarRad);
-	}
+
+	//Write out fisheye images
+	//for (size_t i = 0; i < _cubemap->getNumChildren(); i++)
+	//{
+	//	CubemapSurface* face = _cubemap->getFace(i);
+	//	osgDB::writeImageFile(*face->Image(), face->getName() + ".png");
+	//}
+	//osg::ref_ptr<osg::Image> fisheye = _cubemap->toHemisphericalImage(512, 512);
+	//osgDB::writeImageFile(*fisheye, "fisheye2.png");
+	//osgDB::writeImageFile(*_cubemap2fisheyeCamera->Image(), "fisheye.png");
+	double svf = Utils::calSVF(_cubemap2fisheyeCamera->Image().get(), false);
+
+	SolarParam param = *_solarParam;
+	param.lon = geoPos.x();
+	param.lat = geoPos.y();
+	param.elev = param.elev + max(geoPos.z(), 0);
+	param.slope = Utils::calculateSlope(surfaceNormal);
+	param.aspect = Utils::calculateAspect(surfaceNormal);
+	SolarRadiation solarRad = calSolar(param);
+	solarRad.svf = svf;
+	_resultsCallback(svf, solarRad);
+	_pointRenderer->pushPoint(worldPos, param, solarRad);
 }
 
 bool SolarInteractiveHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa)
@@ -157,53 +164,61 @@ bool SolarInteractiveHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GU
 			{
 				_pointRenderer->redo();
 			}
+			else if (key == osgGA::GUIEventAdapter::KEY_E)
+			{
+				std::time_t t = std::time(0);   // get time now
+				std::tm* now = std::localtime(&t);
+				std::stringstream filenameSS;
+				filenameSS << 1900 + now->tm_year << "-" << now->tm_mon + 1 << "-" << now->tm_mday
+					<< "-" << now->tm_hour << "-" << now->tm_min << "-" << now->tm_sec << ".csv";
+				_pointRenderer->exportPoints(filenameSS.str());
+			}
 			//printf("%d,%d,%d\n", key, osgGA::GUIEventAdapter::KEY_Z, osgGA::GUIEventAdapter::KEY_Y);
 		}
 	}
 	return false;
 }
 
-SolarRadiation SolarInteractiveHandler::calSolar(osg::Vec3d geoPos, osg::Vec3d normal)
+SolarRadiation SolarInteractiveHandler::calSolar(SolarParam& solarParam)
 {
 	osg::Image* img = _cubemap2fisheyeCamera->Image().get();
 	SolarRadiation annualRad;
 	annualRad.Zero();
 	std::vector<SolarRadiation> dailyRads;
-	SolarParam param = *_solarParam;
-	param.lon = geoPos.x();
-	param.lat = geoPos.y();
-	param.elev = max(geoPos.z(), 0);
-	param.slope = Utils::calculateSlope(normal);
-	param.aspect = Utils::calculateAspect(normal);
-	int startDay = param.startDay;
-	int endDay = param.endDay;
-	if (param.isSingleDay && endDay > startDay)
+	
+	int startDay = solarParam.startDay;
+	int endDay = solarParam.endDay;
+	if (solarParam.isSingleDay && endDay > startDay)
 		endDay = startDay;
 	int lastSteps = 0;
 	GrassSolar rsun;
 	for (int day = startDay; day <= endDay; day++)
 	{
-		param.startDay = day;
-		std::vector<SunVector> sunVecs = rsun.getSunVectors(param);
+		solarParam.day = day;
+		std::vector<SunVector> sunVecs = rsun.getSunVectors(solarParam);
 		if (lastSteps != sunVecs.size())
 		{
-			if (param.shadowInfo)
-				delete[] param.shadowInfo;
-			param.shadowInfo = new bool[sunVecs.size()];
+			if (solarParam.shadowInfo)
+				delete[] solarParam.shadowInfo;
+			solarParam.shadowInfo = new bool[sunVecs.size()];
 		}
+		std::string shadowInfo = "";
 		for (int n = 0; n < sunVecs.size(); n++)
 		{
 			SunVector sunVec = sunVecs[n];
-			param.shadowInfo[n] = _cubemap->isShadowed((double)sunVec.alt, (double)sunVec.azimuth);
+			solarParam.shadowInfo[n] = _cubemap->isShadowed((double)sunVec.alt, (double)sunVec.azimuth);
+			shadowInfo += (solarParam.shadowInfo[n] ? "1" : "0");
+			if (n < sunVecs.size() - 1)
+				shadowInfo += ",";
 		}
-
-		param.day = day;
-		SolarRadiation dailyRad = rsun.calculateSolarRadiation(param);
+		printf("%s\n", shadowInfo.data());
+		solarParam.day = day;
+		SolarRadiation dailyRad = rsun.calculateSolarRadiation(solarParam);
 		dailyRads.push_back(dailyRad);
 		annualRad = annualRad + dailyRad;
 	}
-	if (param.shadowInfo)
-		delete[] param.shadowInfo;
+	if (solarParam.shadowInfo)
+		delete[] solarParam.shadowInfo;
 	return annualRad;
 }
 

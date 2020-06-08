@@ -20,6 +20,7 @@ void CubemapSurface::update()
 	osg::Vec3d up = _up * _local2World;
 	_viewMatrix.makeLookAt(_pos, _pos + dir * 100, up);
 	_projectionMatrix.makePerspective(90, 1.0, 0.01, 1000000);
+	_viewProjMatrix = _viewMatrix * _projectionMatrix;
 	dirtyBound();
 }
 
@@ -51,10 +52,10 @@ CubemapSurface* Cubemap::getFace(int face)
 	return dynamic_cast<CubemapSurface*>(getChild(face));
 }
 
-CubemapSurface* Cubemap::getFace(osg::TextureCubeMap::Face face)
-{
-	return getFace((int)face);
-}
+//CubemapSurface* Cubemap::getFace(osg::TextureCubeMap::Face face)
+//{
+//	return getFace((int)face);
+//}
 
 RenderSurface* Cubemap::toHemisphericalSurface()
 {
@@ -118,13 +119,13 @@ RenderSurface* Cubemap::toHemisphericalSurface()
 		"  vec4 rgba = textureCube( uEnvironmentMap, vec3(dir.x, -dir.z, dir.y));\n"
 		"  if(radius > 1)\n"
 		"  {\n"
-		"     rgba = vec4(0.2,0.2,0.2,0.3);\n"
+		"     rgba = vec4(0.0,0.0,0.0,0.6);\n"
 		"     gl_FragColor = rgba;\n"
 		"     return;\n"
 		"  }\n"
 		"  else if(rgba.a < 0.5)\n"
 		"  {\n"
-		"     rgba = vec4(0, 0, 0.2, 0.85);\n"
+		"     rgba = vec4(0, 0.5, 1, 0.65);\n"
 		"  }\n"
 		"  else\n"
 		"  {\n"
@@ -212,6 +213,6 @@ bool Cubemap::isShadowed(double alt, double azimuth)
 	double u = (screenPos.x() + 1.0) * 0.5;
 	double v = (screenPos.y() + 1.0) * 0.5;
 	osg::Vec4 color = faceImage->getColor(osg::Vec2(u, v));
-	return color.a() > 0.65;
+	return color.a() > 0.95;
 }
 

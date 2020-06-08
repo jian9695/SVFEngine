@@ -121,7 +121,7 @@ double Utils::calSVF(osg::Image* img, bool applyLambert)
 				wproj = wproj * cos(zenithR);
 			}
 			totalarea += wproj;
-			if (a < 130)
+			if (a < 240)
 			{
 				skypixels++;
 				skyarea += wproj;

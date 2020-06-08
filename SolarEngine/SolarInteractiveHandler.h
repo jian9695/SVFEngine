@@ -35,7 +35,7 @@ public:
 private:
 	//compute the mouse-model intersection point; compute SVF at this point; update the fisheye HUD and _text labels
 	void computeMouseIntersection(osgUtil::LineSegmentIntersector* ray);
-	SolarRadiation calSolar(osg::Vec3d geoPos, osg::Vec3d normal);
+	SolarRadiation calSolar(SolarParam& solarParam);
 	bool isEarth();
 	std::tuple<bool, osg::Vec3d, osg::Matrixd> getGeoTransform(osg::Vec3d worldPos);
 private:

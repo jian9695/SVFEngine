@@ -4,10 +4,10 @@ r.sun: This program was writen by Jaro Hofierka in Summer 1993 and re-engineered
 in 1996-1999. In cooperation with Marcel Suri and Thomas Huld from JRC in Ispra
 a new version of r.sun was prepared using ESRA solar radiation formulas.
 See manual pages for details.
-(C) 2002 Copyright Jaro Hofierka, Gresaka 22, 085 01 Bardejov, Slovakia, 
-              and GeoModel, s.r.o., Bratislava, Slovakia
+(C) 2002 Copyright Jaro Hofierka, Gresaka 22, 085 01 Bardejov, Slovakia,
+							and GeoModel, s.r.o., Bratislava, Slovakia
 email: hofierka@geomodel.sk,marcel.suri@jrc.it,suri@geomodel.sk,
-       Thomas Huld <Thomas.Huld@jrc.it> (lat/long fix)
+			 Thomas Huld <Thomas.Huld@jrc.it> (lat/long fix)
 *******************************************************************************/
 /*
  * This program is free software; you can redistribute it and/or
@@ -25,11 +25,11 @@ email: hofierka@geomodel.sk,marcel.suri@jrc.it,suri@geomodel.sk,
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-/*v. 2.0 July 2002, NULL data handling, JH */
-/*v. 2.1 January 2003, code optimization by Thomas Huld, JH */
-/*v. 3.0 February 2006, several changes (shadowing algorithm, earth's curvature JH */
+ /*v. 2.0 July 2002, NULL data handling, JH */
+ /*v. 2.1 January 2003, code optimization by Thomas Huld, JH */
+ /*v. 3.0 February 2006, several changes (shadowing algorithm, earth's curvature JH */
 
-//#include "cutil_inline.h"
+ //#include "cutil_inline.h"
 #include "GrassSolar.h"
 #include <fstream>
 #include <sstream>
@@ -76,12 +76,12 @@ double cdh = DSKY;//clear-sky index for diffuse component
 #define earthRadiusKm 6371000.0
 // This function converts decimal degrees to radians
 double GrassSolar::deg2rad2(double deg) {
-		return (deg * pi / 180);
+	return (deg * pi / 180);
 };
 
 //  This function converts radians to decimal degrees
 double GrassSolar::rad2deg2(double rad) {
-		return (rad * 180 / pi);
+	return (rad * 180 / pi);
 };
 
 
@@ -90,71 +90,70 @@ int m2[12] = { 31,29,31,30,31,30,31,31,30,31,30,31 };
 int monthDay2NumDay(int year, int month, int day)
 {
 
-		int numday = 0;
-		int* months = m1;
-		if (year % 400 == 0 || (year % 4 == 0 && year % 100 != 0)) {
-				months = m2;
-		}
-		for (int i = 0; i < month - 1; i++)
-		{
-				numday += months[i];
-		}
-		numday += day;
-		return numday;
+	int numday = 0;
+	int* months = m1;
+	if (year % 400 == 0 || (year % 4 == 0 && year % 100 != 0)) {
+		months = m2;
+	}
+	for (int i = 0; i < month - 1; i++)
+	{
+		numday += months[i];
+	}
+	numday += day;
+	return numday;
 }
 
 void numDay2MonthDay(int year, int num, int& month, int& day)
 {
 
 
-		int curDay = 0;
-		int* months = m1;
-		if (year % 400 == 0 || (year % 4 == 0 && year % 100 != 0)) {
-				months = m2;
-		}
-		month = 0;
-		day = 0;
-		for (int i = 0; i < 12; i++)
+	int curDay = 0;
+	int* months = m1;
+	if (year % 400 == 0 || (year % 4 == 0 && year % 100 != 0)) {
+		months = m2;
+	}
+	month = 0;
+	day = 0;
+	for (int i = 0; i < 12; i++)
+	{
+		if (curDay + months[i] >= num)
 		{
-				if (curDay + months[i] >= num)
-				{
-						month = i + 1;
-						day = num - curDay;
-						break;
-				}
-				curDay += months[i];
+			month = i + 1;
+			day = num - curDay;
+			break;
 		}
+		curDay += months[i];
+	}
 
 
 }
 
 void printfVec3(osg::Vec3 v)
 {
-		printf("(%f,%f,%f)\n", v.x(), v.y(), v.z());
+	printf("(%f,%f,%f)\n", v.x(), v.y(), v.z());
 }
 
 SolarRadiation GrassSolar::calculateSolarRadiation(SolarParam& solar_param)
 {
-    int i, j, l;
-    double global;
+	int i, j, l;
+	double global;
 
-    double lum, q1;
-    TempVariables tmpval;
+	double lum, q1;
+	TempVariables tmpval;
 	tmpval.linke = solar_param.linke;
-	tmpval.longitude = solar_param.lon;
 	tmpval.latitude = solar_param.lat;
 	tmpval.day = solar_param.day;
 	tmpval.step = solar_param.time_step;
-    tmpval.aspect = solar_param.aspect;
+	tmpval.aspect = solar_param.aspect;
 	tmpval.slope = solar_param.slope;
 	tmpval.shadowInfo = solar_param.shadowInfo;
 	tmpval.tien = solar_param.isShadowed;
 	tmpval.elev = solar_param.elev;
 	cbh = solar_param.bsky;
 	cdh = solar_param.dsky;
-	if(COLLECT_SUN_VECTOR)
+	if (COLLECT_SUN_VECTOR)
 	{
-	     SunVectors.clear();
+		SunVectors.clear();
 	}
 
 	SolarRadiation result;
@@ -171,18 +170,18 @@ SolarRadiation GrassSolar::calculateSolarRadiation(SolarParam& solar_param)
 	}
 
 	tmpval.declination = com_declin(tmpval.day);
-    tmpval.sindecl = sin(tmpval.declination);
-    tmpval.cosdecl = cos(tmpval.declination);
+	tmpval.sindecl = sin(tmpval.declination);
+	tmpval.cosdecl = cos(tmpval.declination);
 
-    tmpval.c = com_sol_const(tmpval.day);
+	tmpval.c = com_sol_const(tmpval.day);
 
-    tmpval.length = 0;
+	tmpval.length = 0;
 
 	tmpval.coslat = cos(deg2rad * tmpval.latitude);
 	tmpval.coslatsq = tmpval.coslat * tmpval.coslat;
-    
+
 	tmpval.aspect = tmpval.aspect * DEG;
-	tmpval.slope =  tmpval.slope * DEG;
+	tmpval.slope = tmpval.slope * DEG;
 
 	tmpval.latitude = -tmpval.latitude * DEG;
 
@@ -204,177 +203,174 @@ SolarRadiation GrassSolar::calculateSolarRadiation(SolarParam& solar_param)
 	tmpval.lum_C31_l = cos(tmpval.latid_l) * tmpval.cosdecl;
 	tmpval.lum_C33_l = tmpval.sin_phi_l * tmpval.sindecl;
 
-    com_par_const(tmpval);
-    com_par(tmpval);
-    lum = lumcline2(tmpval);
-    lum = RAD * asin(lum);
+	com_par_const(tmpval);
+	com_par(tmpval);
+	lum = lumcline2(tmpval);
+	lum = RAD * asin(lum);
 
 	double assignedTime = solar_param.time.toDecimalHour();
-    joules2(tmpval,solar_param.isInstantaneous,assignedTime);
+	joules2(tmpval, solar_param.isInstantaneous, assignedTime);
 	global = tmpval.beam_e + tmpval.diff_e + tmpval.refl_e;
 
 	result.global = global;
 	result.beam = tmpval.beam_e;
 	result.diffuse = tmpval.diff_e;
 	result.reflected = tmpval.refl_e;
-    
+
 	//printf("insol=%f,beam=%f,diff=%f,refl=%f,global=%f\n", tmpval.insol_t,tmpval.beam_e,tmpval.diff_e,tmpval.refl_e,global);
 	COLLECT_SUN_VECTOR = false;
 	return result;
 
 }
 
-
 void GrassSolar::com_par_const(TempVariables& tmpval)
 {
-    double pom;
+	double pom;
 
-    tmpval.lum_C11 = tmpval.sinlat * tmpval.cosdecl;
-    tmpval.lum_C13 = -tmpval.coslat * tmpval.sindecl;
-    tmpval.lum_C22 = tmpval.cosdecl;
-    tmpval.lum_C31 = tmpval.coslat * tmpval.cosdecl;
-    tmpval.lum_C33 = tmpval.sinlat * tmpval.sindecl;
+	tmpval.lum_C11 = tmpval.sinlat * tmpval.cosdecl;
+	tmpval.lum_C13 = -tmpval.coslat * tmpval.sindecl;
+	tmpval.lum_C22 = tmpval.cosdecl;
+	tmpval.lum_C31 = tmpval.coslat * tmpval.cosdecl;
+	tmpval.lum_C33 = tmpval.sinlat * tmpval.sindecl;
 
-    if (fabs(tmpval.lum_C31) >= EPS) {
-	pom = -tmpval.lum_C33 / tmpval.lum_C31;
-	if (fabs(pom) <= 1) {
-	    pom = acos(pom);
-	    pom = (pom * 180) / M_PI;
-	    tmpval.sunrise_time = (90 - pom) / 15 + 6;
-	    tmpval.sunset_time = (pom - 90) / 15 + 18;
-	}
-	else {
-	    if (pom < 0) {
-		/*        printf("\n Sun is ABOVE the surface during the whole day\n"); */
-		tmpval.sunrise_time = 0;
-		tmpval.sunset_time = 24;
+	if (fabs(tmpval.lum_C31) >= EPS) {
+		pom = -tmpval.lum_C33 / tmpval.lum_C31;
+		if (fabs(pom) <= 1) {
+			pom = acos(pom);
+			pom = (pom * 180) / M_PI;
+			tmpval.sunrise_time = (90 - pom) / 15 + 6;
+			tmpval.sunset_time = (pom - 90) / 15 + 18;
 		}
-		if (fabs(pom) - 1 <= EPS)
-		{
-		    //printf("\texcept at midnight is sun ON THE HORIZONT\n");
-	    }
-	    else {
-		/*                printf("\n The sun is BELOW the surface during the whole day\n"); */
-		if (fabs(pom) - 1 <= EPS) {
-		    //printf("\texcept at noon is sun ON HORIZONT\n");
-		    tmpval.sunrise_time = 12;
-		    tmpval.sunset_time = 12;
+		else {
+			if (pom < 0) {
+				/*        printf("\n Sun is ABOVE the surface during the whole day\n"); */
+				tmpval.sunrise_time = 0;
+				tmpval.sunset_time = 24;
+			}
+			if (fabs(pom) - 1 <= EPS)
+			{
+				//printf("\texcept at midnight is sun ON THE HORIZONT\n");
+			}
+			else {
+				/*                printf("\n The sun is BELOW the surface during the whole day\n"); */
+				if (fabs(pom) - 1 <= EPS) {
+					//printf("\texcept at noon is sun ON HORIZONT\n");
+					tmpval.sunrise_time = 12;
+					tmpval.sunset_time = 12;
+				}
+			}
 		}
-	    }
 	}
-    }
 
 }
 
-
 void GrassSolar::com_par(TempVariables& tmpval)
 {
-    double old_time, pom, xpom, ypom;
+	double old_time, pom, xpom, ypom;
 
-    double coslum_time;
+	double coslum_time;
 
-    coslum_time = cos(tmpval.lum_time);
+	coslum_time = cos(tmpval.lum_time);
 
-    old_time = tmpval.lum_time;
+	old_time = tmpval.lum_time;
 
 
-    tmpval.lum_Lx = -tmpval.lum_C22 * sin(tmpval.lum_time);
-    tmpval.lum_Ly = tmpval.lum_C11 * coslum_time + tmpval.lum_C13;
-    tmpval.lum_Lz = tmpval.lum_C31 * coslum_time + tmpval.lum_C33;
+	tmpval.lum_Lx = -tmpval.lum_C22 * sin(tmpval.lum_time);
+	tmpval.lum_Ly = tmpval.lum_C11 * coslum_time + tmpval.lum_C13;
+	tmpval.lum_Lz = tmpval.lum_C31 * coslum_time + tmpval.lum_C33;
 
-    if (fabs(tmpval.lum_C31) < EPS) {
-	if (fabs(tmpval.lum_Lz) >= EPS) {
-	    if (tmpval.lum_Lz > 0) {
-		/*                        printf("\tSun is ABOVE area during the whole day\n"); */
-		tmpval.sunrise_time = 0;
-		tmpval.sunset_time = 24;
-	    }
-	    else {
-		tmpval.h0 = 0.;
-		tmpval.A0 = UNDEF;
-		return;
-	    }
+	if (fabs(tmpval.lum_C31) < EPS) {
+		if (fabs(tmpval.lum_Lz) >= EPS) {
+			if (tmpval.lum_Lz > 0) {
+				/*                        printf("\tSun is ABOVE area during the whole day\n"); */
+				tmpval.sunrise_time = 0;
+				tmpval.sunset_time = 24;
+			}
+			else {
+				tmpval.h0 = 0.;
+				tmpval.A0 = UNDEF;
+				return;
+			}
+		}
+		else {
+			/*                      printf("\tThe Sun is ON HORIZON during the whole day\n"); */
+			tmpval.sunrise_time = 0;
+			tmpval.sunset_time = 24;
+		}
+	}
+
+	tmpval.h0 = asin(tmpval.lum_Lz);		/* vertical angle of the sun */
+	/* lum_Lz is sin(h0) */
+
+	xpom = tmpval.lum_Lx * tmpval.lum_Lx;
+	ypom = tmpval.lum_Ly * tmpval.lum_Ly;
+	pom = sqrt(xpom + ypom);
+
+
+	if (fabs(pom) > EPS) {
+		tmpval.A0 = tmpval.lum_Ly / pom;
+		tmpval.A0 = acos(tmpval.A0);		/* horiz. angle of the Sun */
+
+		/*                      A0 *= RAD; */
+
+		if (tmpval.lum_Lx < 0)
+			tmpval.A0 = M2_PI - tmpval.A0;
 	}
 	else {
-	    /*                      printf("\tThe Sun is ON HORIZON during the whole day\n"); */
-	    tmpval.sunrise_time = 0;
-	    tmpval.sunset_time = 24;
+		tmpval.A0 = UNDEF;
+		//if (tmpval.h0 > 0)
+		//    //printf("A0 = Zenit\n");
+		//else
+		//    //printf("A0 = Nadir\n");
 	}
-    }
 
-    tmpval.h0 = asin(tmpval.lum_Lz);		/* vertical angle of the sun */
-    /* lum_Lz is sin(h0) */
+	if (tmpval.A0 < 0.5 * M_PI)
+		tmpval.angle = 0.5 * M_PI - tmpval.A0;
+	else
+		tmpval.angle = 2.5 * M_PI - tmpval.A0;
 
-    xpom = tmpval.lum_Lx * tmpval.lum_Lx;
-    ypom = tmpval.lum_Ly * tmpval.lum_Ly;
-    pom = sqrt(xpom + ypom);
+	tmpval.tanh0 = tan(tmpval.h0);
 
-
-    if (fabs(pom) > EPS) {
-	tmpval.A0 = tmpval.lum_Ly / pom;
-	tmpval.A0 = acos(tmpval.A0);		/* horiz. angle of the Sun */
-
-	/*                      A0 *= RAD; */
-
-	if (tmpval.lum_Lx < 0)
-	    tmpval.A0 = M2_PI - tmpval.A0;
-    }
-    else {
-	tmpval.A0 = UNDEF;
-	//if (tmpval.h0 > 0)
-	//    //printf("A0 = Zenit\n");
-	//else
-	//    //printf("A0 = Nadir\n");
-    }
-
-    if (tmpval.A0 < 0.5 * M_PI)
-	tmpval.angle = 0.5 * M_PI - tmpval.A0;
-    else
-	tmpval.angle = 2.5 * M_PI - tmpval.A0;
-
-    tmpval.tanh0 = tan(tmpval.h0);
-	
 
 }
 
 /**********************************************************/
-
 double GrassSolar::lumcline2(TempVariables& tmpval)
 {
-    double s = 0;
-    int r = 0;
-    //tmpval.tien = 0;
+	double s = 0;
+	int r = 0;
+	//tmpval.tien = 0;
 	tmpval.length = 0;
 	s = tmpval.lum_C31_l * cos(-tmpval.lum_time - tmpval.longit_l) + tmpval.lum_C33_l;	/* Jenco */
-    if (s < 0)
-	    return 0.;
-    return (s);
+	if (s < 0)
+		return 0.;
+	return (s);
 }
 
-void GrassSolar::joules2(TempVariables& tmpval,const bool& isInstaneous,const double& assignedTime)
+void GrassSolar::joules2(TempVariables& tmpval, const bool& isInstaneous, const double& assignedTime)
 {
 
-    double s0, dfr, dfr_rad, dfr1_rad, dfr2_rad, fr1, fr2, dfr1, dfr2;
-    double ra, dra, ss_rad = 0., sr_rad;
-    int i1, i2, ss = 1, ss0 = 1;
+	double s0, dfr, dfr_rad, dfr1_rad, dfr2_rad, fr1, fr2, dfr1, dfr2;
+	double ra, dra, ss_rad = 0., sr_rad;
+	int i1, i2, ss = 1, ss0 = 1;
 
-    tmpval.beam_e = 0.;
-    tmpval.diff_e = 0.;
-    tmpval.refl_e = 0.;
-    tmpval.insol_t = 0.;
-    //tmpval.tien = 0;
+	tmpval.beam_e = 0.;
+	tmpval.diff_e = 0.;
+	tmpval.refl_e = 0.;
+	tmpval.insol_t = 0.;
+	//tmpval.tien = 0;
 
-    //if (tt == NULL)
+	//if (tt == NULL)
 	tmpval.lum_time = 0.;
 
-    com_par_const(tmpval);
-    com_par(tmpval);
-	if(isInstaneous)
+	com_par_const(tmpval);
+	com_par(tmpval);
+	if (isInstaneous)
 	{
 
-		if(assignedTime < tmpval.sunrise_time || assignedTime > tmpval.sunset_time)
-		{		
-			if(COLLECT_SUN_VECTOR)
+		if (assignedTime < tmpval.sunrise_time || assignedTime > tmpval.sunset_time)
+		{
+			if (COLLECT_SUN_VECTOR)
 			{
 				SunVector sunvec;
 				sunvec.azimuth = 0;
@@ -385,20 +381,20 @@ void GrassSolar::joules2(TempVariables& tmpval,const bool& isInstaneous,const do
 			}
 			return;
 		}
-	
+
 		tmpval.sunrise_time = assignedTime;
-		
+
 	}
 	i1 = (int)tmpval.sunrise_time;
 	fr1 = tmpval.sunrise_time - i1;
 	if (fr1 > 0.)
-	    fr1 = 1 - fr1;
+		fr1 = 1 - fr1;
 	else
-	    fr1 = -fr1;
+		fr1 = -fr1;
 
 	dfr1 = fr1;
 	while (dfr1 > tmpval.step) {
-	    dfr1 = dfr1 - tmpval.step;
+		dfr1 = dfr1 - tmpval.step;
 	}
 
 	i2 = (int)tmpval.sunset_time;
@@ -406,16 +402,16 @@ void GrassSolar::joules2(TempVariables& tmpval,const bool& isInstaneous,const do
 
 	dfr2 = fr2;
 	while (dfr2 > tmpval.step) {
-	    dfr2 = dfr2 - tmpval.step;
+		dfr2 = dfr2 - tmpval.step;
 	}
 
 	sr_rad = (tmpval.sunrise_time - 12.) * 15.;
 	if (ss_rad < 0)
-	    sr_rad += 360;
+		sr_rad += 360;
 	sr_rad = sr_rad * DEG;
 	ss_rad = (tmpval.sunset_time - 12.) * 15.;
 	if (ss_rad < 0)
-	    ss_rad += 360;
+		ss_rad += 360;
 	ss_rad = ss_rad * DEG;
 
 	dfr1_rad = dfr1 * 15. * DEG;
@@ -427,9 +423,9 @@ void GrassSolar::joules2(TempVariables& tmpval,const bool& isInstaneous,const do
 
 	while (ss == 1) {
 
-	    com_par(tmpval);
-	    //printf("time=%f,horizontal=%f,vertical=%f\n",tmpval.lum_time,rad2deg2(tmpval.A0),rad2deg2(tmpval.h0));
-		if(COLLECT_SUN_VECTOR)
+		com_par(tmpval);
+		//printf("time=%f,horizontal=%f,vertical=%f\n",tmpval.lum_time,rad2deg2(tmpval.A0),rad2deg2(tmpval.h0));
+		if (COLLECT_SUN_VECTOR)
 		{
 			SunVector sunvec;
 			sunvec.azimuth = rad2deg2(tmpval.A0);
@@ -438,126 +434,124 @@ void GrassSolar::joules2(TempVariables& tmpval,const bool& isInstaneous,const do
 			SunVectors.push_back(sunvec);
 			_curTimeStep++;
 		}
-		else if(tmpval.shadowInfo)
+		else if (tmpval.shadowInfo)
 		{
 			tmpval.tien = tmpval.shadowInfo[_curTimeStep];
 		}
 
 		_curTimeStep++;
-	    s0 = lumcline2(tmpval);
+		s0 = lumcline2(tmpval);
 
 
-	    if (tmpval.h0 > 0.) {
-//		if (tmpval.tien != 1 && s0 > 0.) {
-		if (!tmpval.tien && s0 > 0.) {
-		    tmpval.insol_t += dfr;
-		    ra = brad(s0,tmpval);
-			if(isInstaneous)
+		if (tmpval.h0 > 0.) {
+			//		if (tmpval.tien != 1 && s0 > 0.) {
+			if (!tmpval.tien && s0 > 0.) {
+				tmpval.insol_t += dfr;
+				ra = brad(s0, tmpval);
+				if (isInstaneous)
+				{
+					tmpval.beam_e = ra;
+				}
+
+				tmpval.beam_e += dfr * ra;
+				ra = 0.;
+
+			}
+			else
+				tmpval.bh = 0.;
+
+			//dra = drad(s0,tmpval);
+			dra = drad_isotropic(s0, tmpval);
+
+
+			if (isInstaneous)
 			{
-				tmpval.beam_e = ra;
+				tmpval.diff_e = dra;
+				tmpval.refl_e = tmpval.rr;
+				break;
 			}
 
-		    tmpval.beam_e += dfr * ra;
-		    ra = 0.;
+			tmpval.diff_e += dfr * dra;
+			dra = 0.;
+			//drad(s0,tmpval);
 
+			tmpval.refl_e += dfr * tmpval.rr;
+			tmpval.rr = 0.;
+
+			//}
+		}			/* illuminated */
+		//printf("insol=%f,beam=%f,diff=%f,refl=%f,global=%f\n", tmpval.insol_t,tmpval.beam_e,tmpval.diff_e,tmpval.refl_e,tmpval.insol_t+tmpval.beam_e+tmpval.diff_e);
+
+		if (ss0 == 0)
+			return;
+
+		if (dfr < tmpval.step) {
+			dfr = tmpval.step;
+			tmpval.lum_time = tmpval.lum_time + dfr1_rad / 2. + dfr_rad / 2.;
 		}
-		else
-		    tmpval.bh = 0.;
-
-		//dra = drad(s0,tmpval);
-		dra = drad_isotropic(s0,tmpval);
-		
-
-		if(isInstaneous)
-		{
-			tmpval.diff_e = dra;
-		    tmpval.refl_e = tmpval.rr;
-			break;
+		else {
+			tmpval.lum_time = tmpval.lum_time + dfr_rad;
 		}
-
-		tmpval.diff_e += dfr * dra;
-		dra = 0.;
-		//drad(s0,tmpval);
-		
-		tmpval.refl_e += dfr * tmpval.rr;
-		tmpval.rr = 0.;
-
-		//}
-	    }			/* illuminated */
-	    //printf("insol=%f,beam=%f,diff=%f,refl=%f,global=%f\n", tmpval.insol_t,tmpval.beam_e,tmpval.diff_e,tmpval.refl_e,tmpval.insol_t+tmpval.beam_e+tmpval.diff_e);
-
-	    if (ss0 == 0)
-		return;
-
-	    if (dfr < tmpval.step) {
-		dfr = tmpval.step;
-		tmpval.lum_time = tmpval.lum_time + dfr1_rad / 2. + dfr_rad / 2.;
-	    }
-	    else {
-		tmpval.lum_time = tmpval.lum_time + dfr_rad;
-	    }
-	    if (tmpval.lum_time > ss_rad - dfr2_rad / 2.) {
-		dfr = dfr2;
-		tmpval.lum_time = ss_rad - dfr2_rad / 2.;
-		ss0 = 0;	/* we've got the sunset */
-	    }
+		if (tmpval.lum_time > ss_rad - dfr2_rad / 2.) {
+			dfr = dfr2;
+			tmpval.lum_time = ss_rad - dfr2_rad / 2.;
+			ss0 = 0;	/* we've got the sunset */
+		}
 	}			/* end of while */
 
 
 }
 
-
 double GrassSolar::com_sol_const(double no_of_day)
 {
-    double I0, d1;
+	double I0, d1;
 
-    /*  v W/(m*m) */
-    d1 = M2_PI * no_of_day / 365.25;
-    I0 = 1367. * (1 + 0.03344 * cos(d1 - 0.048869));
+	/*  v W/(m*m) */
+	d1 = M2_PI * no_of_day / 365.25;
+	I0 = 1367. * (1 + 0.03344 * cos(d1 - 0.048869));
 
-    return I0;
+	return I0;
 }
-
 
 double GrassSolar::com_declin(double no_of_day)
 {
-    double d1, decl;
+	double d1, decl;
 
-    d1 = M2_PI * no_of_day / 365.25;
-    decl = asin(0.3978 * sin(d1 - 1.4 + 0.0355 * sin(d1 - 0.0489)));
-    decl = -decl;
-   //printf(" declination : %lf\n", decl); 
+	d1 = M2_PI * no_of_day / 365.25;
+	decl = asin(0.3978 * sin(d1 - 1.4 + 0.0355 * sin(d1 - 0.0489)));
+	decl = -decl;
+	//printf(" declination : %lf\n", decl); 
 
-    return (decl);
+	return (decl);
 }
 
-double GrassSolar::brad(double sh,TempVariables& tmpval)
+double GrassSolar::brad(double sh, TempVariables& tmpval)
 {
-    double p, lm, tl, rayl, br;
-    double drefract, temp1, temp2, h0refract;
+	double p, lm, tl, rayl, br;
+	double drefract, temp1, temp2, h0refract;
 
-    p = exp(-tmpval.elev / 8434.5);
-    temp1 = 0.1594 + tmpval.h0 * (1.123 + 0.065656 * tmpval.h0);
-    temp2 = 1. + tmpval.h0 * (28.9344 + 277.3971 * tmpval.h0);
-    drefract = 0.061359 * temp1 / temp2;	/* in radians */
-    h0refract = tmpval.h0 + drefract;
-    lm = p / (sin(h0refract) +
-	      0.50572 * pow(h0refract * RAD + 6.07995, -1.6364));
-    tl = 0.8662 * tmpval.linke;
-    if (lm <= 20.)
-	rayl =
-	    1. / (6.6296 +
-		  lm * (1.7513 +
-			lm * (-0.1202 + lm * (0.0065 - lm * 0.00013))));
-    else
-	rayl = 1. / (10.4 + 0.718 * lm);
-    tmpval.bh = cbh * tmpval.c * tmpval.lum_Lz * exp(-rayl * lm * tl);
-    if (tmpval.aspect != UNDEF && tmpval.slope != 0.)
-	br = tmpval.bh * sh / tmpval.lum_Lz;
-    else
-	br = tmpval.bh;
+	p = exp(-tmpval.elev / 8434.5);
+	temp1 = 0.1594 + tmpval.h0 * (1.123 + 0.065656 * tmpval.h0);
+	temp2 = 1. + tmpval.h0 * (28.9344 + 277.3971 * tmpval.h0);
+	drefract = 0.061359 * temp1 / temp2;	/* in radians */
+	h0refract = tmpval.h0 + drefract;
+	lm = p / (sin(h0refract) +
+		0.50572 * pow(h0refract * RAD + 6.07995, -1.6364));
+	tl = 0.8662 * tmpval.linke;
+	if (lm <= 20.)
+		rayl =
+		1. / (6.6296 +
+			lm * (1.7513 +
+				lm * (-0.1202 + lm * (0.0065 - lm * 0.00013))));
+	else
+		rayl = 1. / (10.4 + 0.718 * lm);
+	tmpval.bh = cbh * tmpval.c * tmpval.lum_Lz * exp(-rayl * lm * tl);
+	if (tmpval.aspect != UNDEF && tmpval.slope != 0.)
+		br = tmpval.bh * sh / tmpval.lum_Lz;
+	else
+		br = tmpval.bh;
 
-    return (br);
+	return (br);
 }
 
 //double drad(double sh,TempVariables& tmpval)
@@ -616,10 +610,8 @@ double GrassSolar::brad(double sh,TempVariables& tmpval)
 //    return (dr);
 //}
 
-
-
 //isotropic diffuse model
-double GrassSolar::drad_isotropic(double sh,TempVariables& tmpval)
+double GrassSolar::drad_isotropic(double sh, TempVariables& tmpval)
 {
 	double tn, fd, fx = 0., A1, A2, A3, A1b;
 	double r_sky, kb, dr, gh, a_ln, ln, fg;
@@ -629,7 +621,7 @@ double GrassSolar::drad_isotropic(double sh,TempVariables& tmpval)
 	sinslope = sin(tmpval.slope);
 
 	tn = -0.015843 + tmpval.linke * (0.030543 + 0.0003797 * tmpval.linke);
-	A1b = 0.26463 +  tmpval.linke * (-0.061581 + 0.0031408 * tmpval.linke);
+	A1b = 0.26463 + tmpval.linke * (-0.061581 + 0.0031408 * tmpval.linke);
 	if (A1b * tn < 0.0022)
 		A1 = 0.0022 / tn;
 	else
@@ -663,9 +655,9 @@ double GrassSolar::drad_isotropic(double sh,TempVariables& tmpval)
 		}
 		else if (tmpval.h0 < 0.1)
 			fx = ((0.00263 - 0.712 * kb - 0.6883 * kb * kb) * fg +
-			r_sky) * (1. - kb) + kb * sin(tmpval.slope) * cos(a_ln) / (0.1 -
-			0.008 *
-			tmpval.h0);
+				r_sky) * (1. - kb) + kb * sin(tmpval.slope) * cos(a_ln) / (0.1 -
+					0.008 *
+					tmpval.h0);
 		double rate = cos(tmpval.slope);
 		dr = tmpval.dh * (1 + rate) / 2;
 		/* refl. rad */
@@ -778,51 +770,52 @@ double GrassSolar::drad_isotropic(double sh,TempVariables& tmpval)
 //}
 #pragma endregion perez diffuse model
 //diffuse horizontal irradiance
+
 std::vector<SunVector> GrassSolar::getSunVectors(SolarParam& sparam)
 {
-		COLLECT_SUN_VECTOR = true;
-		SunVectors.clear();
-		calculateSolarRadiation(sparam);
-		COLLECT_SUN_VECTOR = false;
-		return SunVectors;
+	COLLECT_SUN_VECTOR = true;
+	SunVectors.clear();
+	calculateSolarRadiation(sparam);
+	COLLECT_SUN_VECTOR = false;
+	return SunVectors;
 }
 
 SolarRadiation GrassSolar::calculateSolarRadiation(SolarParam& solar_param, osg::Node* sceneNode, osg::Vec3d pos)
 {
-		std::vector<SunVector> sunVectors = getSunVectors(solar_param);
-		std::vector<osg::Vec3d> lightDirs = Utils::sunVector2LightDir(sunVectors);
+	std::vector<SunVector> sunVectors = getSunVectors(solar_param);
+	std::vector<osg::Vec3d> lightDirs = Utils::sunVector2LightDir(sunVectors);
 
-		solar_param.shadowInfo = new bool[lightDirs.size()];
-		std::string shadowMasks = "";
-		for (size_t i = 0; i < lightDirs.size(); i++)
+	solar_param.shadowInfo = new bool[lightDirs.size()];
+	std::string shadowMasks = "";
+	for (size_t i = 0; i < lightDirs.size(); i++)
+	{
+		osg::Vec3d start = pos;
+		osg::Vec3d end = pos + lightDirs[i] * 100000;
+		osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector = new osgUtil::LineSegmentIntersector(start, end);
+		osgUtil::IntersectionVisitor intersectVisitor(intersector.get());
+		sceneNode->accept(intersectVisitor);
+		if (intersector->containsIntersections())
 		{
-				osg::Vec3d start = pos;
-				osg::Vec3d end = pos + lightDirs[i] * 100000;
-				osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector = new osgUtil::LineSegmentIntersector(start, end);
-				osgUtil::IntersectionVisitor intersectVisitor(intersector.get());
-				sceneNode->accept(intersectVisitor);
-				if (intersector->containsIntersections())
-				{
-						solar_param.shadowInfo[i] = true;
-						shadowMasks += "1";
-				}
-				else
-				{
-						solar_param.shadowInfo[i] = false;
-						shadowMasks += "0";
-				}
-				if (i < lightDirs.size() - 1)
-				{
-						shadowMasks += ",";
-				}
+			solar_param.shadowInfo[i] = true;
+			shadowMasks += "1";
 		}
-		SolarRadiation rad = calculateSolarRadiation(solar_param);
-		rad.shadowMasks = shadowMasks;
-		delete[] solar_param.shadowInfo;
-		return rad;
+		else
+		{
+			solar_param.shadowInfo[i] = false;
+			shadowMasks += "0";
+		}
+		if (i < lightDirs.size() - 1)
+		{
+			shadowMasks += ",";
+		}
+	}
+	SolarRadiation rad = calculateSolarRadiation(solar_param);
+	rad.shadowMasks = shadowMasks;
+	delete[] solar_param.shadowInfo;
+	return rad;
 }
 
 void PrintVec3d(const osg::Vec3d& vec)
 {
-		printf("%f,%f,%f\n", vec.x(), vec.y(), vec.z());
+	printf("%f,%f,%f\n", vec.x(), vec.y(), vec.z());
 }

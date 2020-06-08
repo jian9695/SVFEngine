@@ -5,6 +5,7 @@
 
 #include <string>
 #include <math.h>
+#include <fstream>
 #include <osg/Vec3d>
 
 //structure of solar radiation result
@@ -14,6 +15,7 @@ struct SolarRadiation
 	float beam;//beam component
 	float diffuse;//diffuse component
 	float reflected;//reflected component
+	float svf;//sky view factor
 	std::string shadowMasks;
 public:
 	SolarRadiation()
@@ -191,6 +193,7 @@ struct SolarParam
 		day = 1;
 		startDay = 1;
 		endDay = 1;
+		lon = -9999;
 		isSingleDay = true;
 		useLatitudeOverride = true;
 		useElevationOverride = true;
@@ -207,6 +210,85 @@ struct SolarRadiationPoint : public SolarParam, public SolarRadiation
 		pos = position;
 		*((SolarParam*)this) = param;
 		*((SolarRadiation*)this) = rad;
+	}
+};
+
+enum ValType
+{
+	d = 0,
+	f = 1,
+	vec = 2,
+	s = 3,
+	i = 4
+};
+
+struct OuputVariable
+{
+public:
+	double _d;
+	float _f;
+	osg::Vec3d _vec;
+	std::string _s;
+	long _i;
+	ValType _type;
+	OuputVariable(double val)
+	{
+		_d = val;
+		_type = ValType::d;
+	}
+
+	OuputVariable(float val)
+	{
+		_f = val;
+		_type = ValType::f;
+	}
+
+	OuputVariable(const osg::Vec3d& val)
+	{
+		_vec = val;
+		_type = ValType::vec;
+	}
+
+	OuputVariable(const std::string& val)
+	{
+		_s = val;
+		_type = ValType::s;
+	}
+
+	OuputVariable(int val)
+	{
+		_i = val;
+		_type = ValType::i;
+	}
+
+	OuputVariable(long val)
+	{
+		_i = val;
+		_type = ValType::i;
+	}
+
+	void Out(std::ofstream& ofs)
+	{
+		if (_type == ValType::d)
+		{
+			ofs << _d;
+		}
+		else if (_type == ValType::f)
+		{
+			ofs << _f;
+		}
+		else if (_type == ValType::s)
+		{
+			ofs << "\"" << _s << "\"";
+		}
+		else if (_type == ValType::i)
+		{
+			ofs << _i;
+		}
+		else if (_type == ValType::vec)
+		{
+			ofs << "\"" << "[" << _vec.x() << "," << _vec.y() << "," << _vec.z() << "\"" << "]";
+		}
 	}
 };
 

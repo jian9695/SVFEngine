@@ -32,7 +32,7 @@ private:
 public:
 	static Cubemap* create(int imageSize, osg::Node* scene = nullptr);
 	CubemapSurface* getFace(int face);
-	CubemapSurface* getFace(osg::TextureCubeMap::Face face);
+	//CubemapSurface* getFace(osg::TextureCubeMap::Face face);
 	osg::TextureCubeMap::Face getFaceNum(float alt, float azimuth);
 	CubemapSurface* getFace(float alt, float azimuth);
 	RenderSurface* toHemisphericalSurface();

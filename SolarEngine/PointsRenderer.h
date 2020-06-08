@@ -33,11 +33,12 @@ public:
 	void popPoint();
 	void undo();
 	void redo();
+	void exportPoints(const std::string& filename);
 private:
 	std::vector<Action> m_doStack;
 	std::vector<Action> m_undoStack;
 private:
-	void doAction(const Action& action);
+	void performAction(const Action& action);
 	void pushPointInternal(const SolarRadiationPoint& point);
 	void popPointInternal();
 };
