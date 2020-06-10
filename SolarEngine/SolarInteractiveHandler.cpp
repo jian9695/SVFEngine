@@ -21,7 +21,10 @@ SolarInteractiveHandler::SolarInteractiveHandler(
 	_mapNode = mapNode;
 
 	//create a node to render a cubemap from a 3D position picked by mouse double-click
-	_cubemap = Cubemap::create(512, sceneNode);
+	if (_mapNode)
+		_cubemap = Cubemap::create(512, mapNode);
+	else
+		_cubemap = Cubemap::create(512, sceneNode);
 	_cubemap->setNodeMask(false);
 	root->addChild(_cubemap);
 
@@ -93,6 +96,7 @@ void SolarInteractiveHandler::computeMouseIntersection(osgUtil::LineSegmentInter
 		cameraBuffer->update();
 	}
 	_cubemap->setNodeMask(true);
+	//_viewer->setCameraManipulator(nullptr, false);
 	//_viewer->getCamera()->setNodeMask(false);
 	_viewer->frame();
 	for (size_t i = 0; i < 2; i++)
@@ -100,6 +104,7 @@ void SolarInteractiveHandler::computeMouseIntersection(osgUtil::LineSegmentInter
 		_viewer->frame();
 	}
 	_cubemap->setNodeMask(false);
+	//_viewer->setCameraManipulator(nullptr, false);
 	//_viewer->getCamera()->setNodeMask(true);
 
 	//Write out fisheye images

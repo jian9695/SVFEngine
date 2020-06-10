@@ -11,14 +11,37 @@
 #include <osg/Geometry>
 #include <osgText/Font>
 #include <osgText/Text>
+#include <osg/PolygonOffset>
 #include <fstream>
+
+class DrawableDrawCallback : public osg::Drawable::DrawCallback
+{
+	virtual void drawImplementation(osg::RenderInfo& renderInfo, const osg::Drawable* drawable) const
+	{
+		const TextLOD* lod = dynamic_cast<const TextLOD*>(drawable->getParent(0));
+		osg::Vec3d pos = lod->_point.pos;
+		osg::Vec3d eye, center, up;
+		renderInfo.getCurrentCamera()->getViewMatrixAsLookAt(eye, center, up);
+		double dist = (eye - pos).length();
+		osg::Drawable* text = const_cast <osg::Drawable*>(drawable);
+		if (dist < 50)
+		{
+			text->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
+		}
+		else
+		{
+			text->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::ON);
+		}
+		drawable->drawImplementation(renderInfo);
+	}
+};
 
 void PointsRenderer::pushPointInternal(const SolarRadiationPoint& point)
 {
-	static osg::ref_ptr<osg::Program> m_pointShader = nullptr;
-	if (!m_pointShader)
+	static osg::ref_ptr<osg::Program> pointsShader = nullptr;
+	if (!pointsShader)
 	{
-		m_pointShader = new osg::Program;
+		pointsShader = new osg::Program;
 		char vertexShaderSource[] =
 			"uniform float pointSize;\n"
 			"void main(void)\n"
@@ -31,11 +54,25 @@ void PointsRenderer::pushPointInternal(const SolarRadiationPoint& point)
 			"{\n"
 			"     gl_FragColor = vec4(1,0,0,1);\n"
 			"}\n";
-		m_pointShader->addShader(new osg::Shader(osg::Shader::FRAGMENT, fragmentShaderSource));
-		m_pointShader->addShader(new osg::Shader(osg::Shader::VERTEX, vertexShaderSource));
+		pointsShader->addShader(new osg::Shader(osg::Shader::FRAGMENT, fragmentShaderSource));
+		pointsShader->addShader(new osg::Shader(osg::Shader::VERTEX, vertexShaderSource));
 		getOrCreateStateSet()->setMode(GL_VERTEX_PROGRAM_POINT_SIZE, osg::StateAttribute::OVERRIDE | osg::StateAttribute::ON);
 		getOrCreateStateSet()->setRenderBinDetails(6000, "RenderBin");
 	}
+
+	static osg::ref_ptr<osg::Program> textsShader = nullptr;
+	if (!textsShader)
+	{
+		textsShader = new osg::Program;
+		char vertexShaderSource[] =
+			"void main(void)\n"
+			"{\n"
+			"   gl_Position = gl_ModelViewProjectionMatrix *  gl_Vertex;\n"
+			"   gl_Position.z += 0.00001;\n"
+			"}\n";
+		textsShader->addShader(new osg::Shader(osg::Shader::VERTEX, vertexShaderSource));
+	}
+
 	//m_solarPoints.push_back(radPoint);
 	std::string label = Utils::value2String(point.global / 1000, 3);
 	m_doStack.push_back(Action(ActionTypeEnum::PUSH, point));
@@ -45,7 +82,7 @@ void PointsRenderer::pushPointInternal(const SolarRadiationPoint& point)
 	vertices->push_back(point.pos);
 	polyGeom->setVertexArray(vertices.get());
 	polyGeom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::POINTS, 0, vertices->size()));
-	polyGeom->getOrCreateStateSet()->setAttribute(m_pointShader.get(), osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
+	polyGeom->getOrCreateStateSet()->setAttribute(pointsShader.get(), osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
 
 	osg::ref_ptr<osg::Geode> pointFar = new osg::Geode;
 	pointFar->addDrawable(polyGeom.get());
@@ -70,7 +107,16 @@ void PointsRenderer::pushPointInternal(const SolarRadiationPoint& point)
 	text->setText(label);
 	text->setBackdropColor(osg::Vec4(1, 1, 0, 1));
 	text->setBackdropType(osgText::Text::BackdropType::OUTLINE);
-	text->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OVERRIDE | osg::StateAttribute::OFF);
+	static osg::ref_ptr<DrawableDrawCallback> drawCallback = new DrawableDrawCallback;
+	text->setDrawCallback(drawCallback.get());
+	//osg::ref_ptr<osg::PolygonOffset> polyoffset = new osg::PolygonOffset;
+	//polyoffset->setFactor(-1.0f);
+	//polyoffset->setUnits(-1.0f);
+	//text->getOrCreateStateSet()->setAttributeAndModes(polyoffset.get(), osg::StateAttribute::OVERRIDE | osg::StateAttribute::ON);
+
+	//text->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OVERRIDE | osg::StateAttribute::OFF);
+	//text->getOrCreateStateSet()->setAttribute(textsShader.get(), osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
+
 	osg::ref_ptr <TextLOD> lod = new TextLOD(point);
 	lod->setRangeMode(osg::LOD::PIXEL_SIZE_ON_SCREEN);
 	lod->addChild(pointFar.get(), 0, 500);
