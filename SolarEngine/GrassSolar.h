@@ -1,6 +1,4 @@
-
-#ifndef  GrassSolar_H
-#define  GrassSolar_H
+#pragma once
 
 #ifdef _WIN32 || WIN32
 #include<Windows.h>
@@ -9,27 +7,6 @@
 #include "TypeDef.h"
 #include "Utils.h"
 #include <osg/Node>
-
-//structure for holding temporary values
-typedef struct/* __align__(16)*/
-{
-public:
-	bool tien;
-	double day;
-	double linke;
-	double length, c, declin, step;
-	double elev, slope, aspect;
-	double lum_C11, lum_C13, lum_C22, lum_C31, lum_C33, lum_Lx, lum_Ly, lum_Lz;
-	double lum_p, sunrise_time, sunset_time, h0, tanh0, A0, angle;
-	double latitude, lum_time, declination;
-	double sinlat, coslat, sindecl, cosdecl;
-	double longit_l, latid_l, cos_u, cos_v, sin_u, sin_v;
-	double sin_phi_l, tan_lam_l, lum_C31_l, lum_C33_l;
-	double beam_e, diff_e, refl_e, bh, dh, rr, insol_t;
-	double coslatsq;
-	bool* shadowInfo;
-	SolarRadiation* parts;
-}TempVariables;
 
 class GrassSolar
 {
@@ -41,9 +18,30 @@ public:
 		SolarRadiation calculateSolarRadiation(SolarParam& solar_param, osg::Node* sceneNode, osg::Vec3d pos);
 
 private:
-	unsigned int _curTimeStep;
-	bool COLLECT_SUN_VECTOR = false;
-	std::vector<SunVector> SunVectors;
+	unsigned int m_curTimeStep;
+	bool m_COLLECT_SUN_VECTOR = false;
+	std::vector<SunVector> m_sunVectors;
+
+	//structure for holding temporary values
+	typedef struct/* __align__(16)*/
+	{
+	public:
+		bool tien;
+		double day;
+		double linke;
+		double length, c, declin, step;
+		double elev, slope, aspect;
+		double lum_C11, lum_C13, lum_C22, lum_C31, lum_C33, lum_Lx, lum_Ly, lum_Lz;
+		double lum_p, sunrise_time, sunset_time, h0, tanh0, A0, angle;
+		double latitude, lum_time, declination;
+		double sinlat, coslat, sindecl, cosdecl;
+		double longit_l, latid_l, cos_u, cos_v, sin_u, sin_v;
+		double sin_phi_l, tan_lam_l, lum_C31_l, lum_C33_l;
+		double beam_e, diff_e, refl_e, bh, dh, rr, insol_t;
+		double coslatsq;
+		bool* shadowInfo;
+		SolarRadiation* parts;
+	}TempVariables;
 
 private:
 	void com_par(TempVariables& tmpval);
@@ -60,4 +58,3 @@ private:
 	//  This function converts radians to decimal degrees
 	double rad2deg2(double rad);
 };
-#endif

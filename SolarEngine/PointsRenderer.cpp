@@ -54,22 +54,22 @@ void PointsRenderer::pushPointInternal(const SolarRadiationPoint& point)
 	}
 
 	//m_solarPoints.push_back(radPoint);
-	std::string label = Utils::value2String(point.global / 1000, 3);
+	std::string label = Utils::value2String(point.m_global / 1000, 3);
 	m_doStack.push_back(Action(ActionTypeEnum::PUSH, point));
 
 	osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
 	osg::ref_ptr<osg::Geometry> polyGeom = new osg::Geometry;
-	vertices->push_back(point.pos);
+	vertices->push_back(point.m_pos);
 	polyGeom->setVertexArray(vertices.get());
 	polyGeom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::POINTS, 0, vertices->size()));
 	polyGeom->getOrCreateStateSet()->setAttribute(pointsShader.get(), osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
 
-	osg::ref_ptr<osg::Geode> pointFar = new osg::Geode;
-	pointFar->addDrawable(polyGeom.get());
-	//pointFar->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OVERRIDE | osg::StateAttribute::OFF);
-	pointFar->setCullingActive(false);
-	osg::ref_ptr<osg::Uniform> pointSizeFar = new osg::Uniform("pointSize", 5.0f);
-	pointFar->getOrCreateStateSet()->addUniform(pointSizeFar.get());
+	//osg::ref_ptr<osg::Geode> pointFar = new osg::Geode;
+	//pointFar->addDrawable(polyGeom.get());
+	////pointFar->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OVERRIDE | osg::StateAttribute::OFF);
+	//pointFar->setCullingActive(false);
+	//osg::ref_ptr<osg::Uniform> pointSizeFar = new osg::Uniform("pointSize", 5.0f);
+	//pointFar->getOrCreateStateSet()->addUniform(pointSizeFar.get());
 
 	osg::ref_ptr<osg::Geode> pointNear = new osg::Geode;
 	pointNear->addDrawable(polyGeom.get());
@@ -79,9 +79,9 @@ void PointsRenderer::pushPointInternal(const SolarRadiationPoint& point)
 
 	osg::ref_ptr<osgText::Text> text = new osgText::Text;
 	text->setColor(osg::Vec4(0, 0, 0, 1));
-	text->setFont("data/arial.ttf");
+	text->setFont("fonts/arial.ttf");
 	text->setCharacterSize(20);
-	text->setPosition(point.pos);
+	text->setPosition(point.m_pos);
 	text->setAxisAlignment(osgText::Text::SCREEN);
 	text->setCharacterSizeMode(osgText::Text::SCREEN_COORDS);
 	text->setText(label);
@@ -91,23 +91,34 @@ void PointsRenderer::pushPointInternal(const SolarRadiationPoint& point)
 	osg::ref_ptr <TextLOD> lod = new TextLOD(point);
 	lod->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OVERRIDE | osg::StateAttribute::OFF);
 	lod->setRangeMode(osg::LOD::PIXEL_SIZE_ON_SCREEN);
-	lod->addChild(pointFar.get(), 0, 1000);
-	lod->addChild(pointNear.get(), 1000, 10000000000);
+	//lod->addChild(pointFar.get(), 0, 1000);
+	lod->addChild(pointNear.get(), 0, 10000000000);
 	lod->addChild(text.get(), 1000, 10000000000);
 	addChild(lod.get());
 }
 
-void PointsRenderer::pushPoint(const SolarRadiationPoint& point)
+void PointsRenderer::pushPoint(SolarRadiationPoint& point, const osg::Image* img)
 {
+	point.m_id = m_pointId++;
+	if (img)
+	{
+		osg::ref_ptr<osg::Image> imageCopy = new osg::Image;
+		imageCopy->allocateImage(img->s(), img->t(), img->r(), img->getPixelFormat(), img->getDataType(), img->getPacking());
+		memcpy(imageCopy->data(), img->data(), img->getImageSizeInBytes());
+		imageCopy->scaleImage(256, 256, 1);
+		m_imagesMap[point.m_id] = imageCopy;
+	}
+
 	m_doStack.push_back(Action(ActionTypeEnum::PUSH, point));
 	pushPointInternal(point);
 }
 
-void PointsRenderer::pushPoint(const osg::Vec3d& point, const SolarParam& param, const SolarRadiation& rad)
-{
-	SolarRadiationPoint radPoint(point, param, rad);
-	pushPointInternal(radPoint);
-}
+//void PointsRenderer::pushPoint(const osg::Vec3d& point, const SolarParam& param, const SolarRadiation& rad)
+//{
+//	SolarRadiationPoint radPoint(point, param, rad);
+//	radPoint.m_id = getNumChildren();
+//	pushPointInternal(radPoint);
+//}
 
 void PointsRenderer::popPointInternal()
 {
@@ -194,24 +205,24 @@ void PointsRenderer::exportPoints(const std::string& filename)
 			continue;
 		const SolarRadiationPoint& point = lod->_point;
 		std::vector<OuputVariable> outputVariables;
-		outputVariables.push_back(OuputVariable(point.lat));
-		outputVariables.push_back(OuputVariable(point.lon));
-		outputVariables.push_back(OuputVariable(point.elev));
-		outputVariables.push_back(OuputVariable(point.pos));
-		outputVariables.push_back(OuputVariable(point.startDay));
-		outputVariables.push_back(OuputVariable(point.endDay));
-		outputVariables.push_back(OuputVariable(point.time_step));
-		outputVariables.push_back(OuputVariable(point.linke));
-		outputVariables.push_back(OuputVariable(point.slope));
-		outputVariables.push_back(OuputVariable(point.aspect));
-		outputVariables.push_back(OuputVariable(point.global / 1000));
-		outputVariables.push_back(OuputVariable(point.beam / 1000));
-		outputVariables.push_back(OuputVariable(point.diffuse / 1000));
-		outputVariables.push_back(OuputVariable(point.reflected / 1000));
-		outputVariables.push_back(OuputVariable(point.svf));
+		outputVariables.push_back(OuputVariable(point.m_lat));
+		outputVariables.push_back(OuputVariable(point.m_lon));
+		outputVariables.push_back(OuputVariable(point.m_elev));
+		outputVariables.push_back(OuputVariable(point.m_pos));
+		outputVariables.push_back(OuputVariable(point.m_startDay));
+		outputVariables.push_back(OuputVariable(point.m_endDay));
+		outputVariables.push_back(OuputVariable(point.m_time_step));
+		outputVariables.push_back(OuputVariable(point.m_linke));
+		outputVariables.push_back(OuputVariable(point.m_slope));
+		outputVariables.push_back(OuputVariable(point.m_aspect));
+		outputVariables.push_back(OuputVariable(point.m_global / 1000));
+		outputVariables.push_back(OuputVariable(point.m_beam / 1000));
+		outputVariables.push_back(OuputVariable(point.m_diffuse / 1000));
+		outputVariables.push_back(OuputVariable(point.m_reflected / 1000));
+		outputVariables.push_back(OuputVariable(point.m_svf));
 		for (int v = 0; v < outputVariables.size(); v++)
 		{
-			outputVariables[v].Out(ofs);
+			outputVariables[v].out(ofs);
 			if (v != outputVariables.size())
 			{
 				ofs << ",";
@@ -234,48 +245,101 @@ void PointsRenderer::postDrawUpdate()
 		TextLOD* lod = dynamic_cast<TextLOD*>(getChild(i));
 		if (!lod)
 			continue;
-		osgText::Text* textNode = (osgText::Text*)lod->getChild(2);
-		osg::Geode* pointNode = (osg::Geode*)lod->getChild(1);
+		osg::Geode* pointNode = (osg::Geode*)lod->getChild(0);
+		osgText::Text* textNode = (osgText::Text*)lod->getChild(1);
 		const SolarRadiationPoint& point = lod->_point;
-		osg::Vec3d pos = lod->_point.pos;
+		osg::Vec3d pos = lod->_point.m_pos;
 		osg::Vec3d eye, center, up;
 		m_sceneCamera->getViewMatrixAsLookAt(eye, center, up);
-		double distTocamera1 = (eye - pos).length();
+		double distTocamera = (eye - pos).length();
 		osg::Vec4d vertex = osg::Vec4d(pos, 1.0) * m_sceneCamera->getViewMatrix() * m_sceneCamera->getProjectionMatrix();
 		osg::Vec3d screenCoords = osg::Vec3d(vertex.x() / vertex.w(), vertex.y() / vertex.w(), vertex.z() / vertex.w());
 		//double fov, aspect, znear, zfar;
 		//m_sceneCamera->getProjectionMatrixAsPerspective(fov, aspect, znear, zfar);
 		screenCoords.z() = (screenCoords.z() + 1.0) * 0.5;
-		osg::Vec2d uv = osg::Vec2d(screenCoords.x() * 0.5 + 0.5, screenCoords.y() * 0.5 + 0.5);
+		osg::Vec2 uv = osg::Vec2(screenCoords.x() * 0.5 + 0.5, screenCoords.y() * 0.5 + 0.5);
 		osg::Matrixd projInverse = osg::Matrixd::inverse(m_sceneCamera->getProjectionMatrix());
 		osg::Matrixd viewInverse = osg::Matrixd::inverse(m_sceneCamera->getViewMatrix());
 		//osg::Vec3d p1 = Utils::WorldPosFromDepth(screenCoords.z(), projInverse, viewInverse, uv.x(), uv.y());
 		//float sceneDepth = m_sceneDepthImage->getColor(osg::Vec2(uv.x(), uv.y())).r();
 		int imgx = (int)(uv.x() * m_sceneDepthImage->s());
 		int imgy = (int)(uv.y() * m_sceneDepthImage->t());
-		bool isVisible = false;
-		int windowSize = 5;
-		for (int xoffset = -windowSize; xoffset < windowSize; xoffset++)
-		{
-			float x = (imgx + xoffset) / (float)m_sceneDepthImage->s();
-			if (x < 0 || x > 1.0)
-				continue;
-			for (int yoffset = -windowSize; yoffset < windowSize; yoffset++)
-			{
-				float y = (imgy + yoffset) / (float)m_sceneDepthImage->t();
-				if (y < 0 || y > 1.0)
-					continue;
-				float sceneDepth = m_sceneDepthImage->getColor(osg::Vec2(x, y)).r();
-				osg::Vec3d p2 = Utils::WorldPosFromDepth(sceneDepth, projInverse, viewInverse, x, y);
-				double distTocamera2 = (p2 - eye).length();
-				if (distTocamera1 < distTocamera2)
-				{
-					isVisible = true;
-					break;
-				}
-			}
-		}
+		bool isVisible = isPointVisible(projInverse, viewInverse, eye, uv, distTocamera);
 		textNode->setNodeMask(isVisible);
 		pointNode->setNodeMask(isVisible);
 	}
+}
+
+bool PointsRenderer::queryPoint(const float& mouseX, const float& mouseY, SolarRadiationPoint& solarPoint)
+{
+	int numChildren = getNumChildren();
+	if (numChildren < 1)
+		return false;
+	osg::Vec2 normalizedMousePos(mouseX, mouseY);
+	osg::Vec2 mousePos(normalizedMousePos.x() * m_sceneDepthImage->s(), normalizedMousePos.y() * m_sceneDepthImage->t());
+	osg::Vec3d eye, center, up;
+	m_sceneCamera->getViewMatrixAsLookAt(eye, center, up);
+	osg::Matrixd projInverse = osg::Matrixd::inverse(m_sceneCamera->getProjectionMatrix());
+	osg::Matrixd viewInverse = osg::Matrixd::inverse(m_sceneCamera->getViewMatrix());
+	bool found = false;
+	float minDist = 25; //select points within a distance of 25 pixels
+	for (int i = 0; i < numChildren; i++)
+	{
+		TextLOD* lod = dynamic_cast<TextLOD*>(getChild(i));
+		if (!lod)
+			continue;
+		const SolarRadiationPoint& point = lod->_point;
+		osg::Vec3d pos = lod->_point.m_pos;
+		double distTocamera = (eye - pos).length();
+		osg::Vec4d vertex = osg::Vec4d(pos, 1.0) * m_sceneCamera->getViewMatrix() * m_sceneCamera->getProjectionMatrix();
+		osg::Vec2 normalizedScreenPos(vertex.x() / vertex.w(), vertex.y() / vertex.w());
+		osg::Vec2 screenPos(normalizedScreenPos.x() * m_sceneDepthImage->s(), normalizedScreenPos.y() * m_sceneDepthImage->t());
+		osg::Vec2 uv(normalizedScreenPos.x() * 0.5 + 0.5, normalizedScreenPos.y() * 0.5 + 0.5);
+		if (!isPointVisible(projInverse, viewInverse, eye, uv, distTocamera))
+			continue;
+		float dist = (mousePos - screenPos).length();
+		if (dist < minDist)
+		{
+			found = true;
+			minDist = dist;
+			solarPoint = lod->_point;
+		}
+	}
+	return found;
+}
+
+bool PointsRenderer::isPointVisible(const osg::Matrixd& projInverse, const osg::Matrixd& viewInverse, const osg::Vec3d& eye, const osg::Vec2& uv, double distTocamera, int windowSize)
+{
+	int imgx = (int)(uv.x() * m_sceneDepthImage->s());
+	int imgy = (int)(uv.y() * m_sceneDepthImage->t());
+	bool isVisible = false;
+	for (int xoffset = -windowSize; xoffset < windowSize; xoffset++)
+	{
+		float x = (imgx + xoffset) / (float)m_sceneDepthImage->s();
+		if (x < 0 || x > 1.0)
+			continue;
+		for (int yoffset = -windowSize; yoffset < windowSize; yoffset++)
+		{
+			float y = (imgy + yoffset) / (float)m_sceneDepthImage->t();
+			if (y < 0 || y > 1.0)
+				continue;
+			float sceneDepth = m_sceneDepthImage->getColor(osg::Vec2(x, y)).r();
+			osg::Vec3d p2 = Utils::worldPosFromDepth(sceneDepth, projInverse, viewInverse, uv);
+			double distTocamera2 = (p2 - eye).length() + 0.5; //add an offset of 0.5 to avoid z fighting
+			if (distTocamera < distTocamera2)
+			{
+				isVisible = true;
+				break;
+			}
+		}
+	}
+
+	return isVisible;
+}
+
+osg::Image* PointsRenderer::getFisheyeForPoint(const int& pointId)
+{
+	if (m_imagesMap.find(pointId) == m_imagesMap.end())
+		return NULL;
+	return m_imagesMap[pointId].get();
 }

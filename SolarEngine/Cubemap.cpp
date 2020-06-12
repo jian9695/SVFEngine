@@ -4,9 +4,9 @@
 CubemapSurface::CubemapSurface(int width, int height, GLenum internalFormat, GLenum sourceFormat, GLenum sourceType, bool allocateImage,
 	osg::Vec3d dir, osg::Vec3d up, std::string name) :
 	RenderSurface(width, height, internalFormat, sourceFormat, sourceType, allocateImage),
-	_dir(dir), _up(up)
+	m_dir(dir), m_up(up)
 {
-	_local2World = osg::Matrixd::identity();
+	m_local2World = osg::Matrixd::identity();
 	osg::Camera::setName(name);
 	setComputeNearFarMode(osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR);
 	setReferenceFrame(osg::Camera::ABSOLUTE_RF);
@@ -15,12 +15,12 @@ CubemapSurface::CubemapSurface(int width, int height, GLenum internalFormat, GLe
 
 void CubemapSurface::update()
 {
-	osg::Vec3d dir = _dir * _local2World;
+	osg::Vec3d dir = m_dir * m_local2World;
 	dir.normalize();
-	osg::Vec3d up = _up * _local2World;
-	_viewMatrix.makeLookAt(_pos, _pos + dir * 100, up);
+	osg::Vec3d up = m_up * m_local2World;
+	_viewMatrix.makeLookAt(m_pos, m_pos + dir * 100, up);
 	_projectionMatrix.makePerspective(90, 1.0, 0.01, 1000000);
-	_viewProjMatrix = _viewMatrix * _projectionMatrix;
+	m_viewProjMatrix = _viewMatrix * _projectionMatrix;
 	dirtyBound();
 }
 
@@ -52,10 +52,10 @@ CubemapSurface* Cubemap::getFace(int face)
 	return dynamic_cast<CubemapSurface*>(getChild(face));
 }
 
-//CubemapSurface* Cubemap::getFace(osg::TextureCubeMap::Face face)
-//{
-//	return getFace((int)face);
-//}
+CubemapSurface* Cubemap::getFace(osg::TextureCubeMap::Face face)
+{
+	return getFace((int)face);
+}
 
 RenderSurface* Cubemap::toHemisphericalSurface()
 {
@@ -136,10 +136,10 @@ RenderSurface* Cubemap::toHemisphericalSurface()
 		"}\n";
 
 	OverlayRenderSurface* fisheye = new OverlayRenderSurface(512, 512, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, true);
-	fisheye->Overlay()->setProgramName("fisheye");
-	fisheye->Overlay()->SetTextureLayer(cubeMap.get(), 0);
-	fisheye->Overlay()->SetVertexShader(vertexSource);
-	fisheye->Overlay()->SetFragmentShader(fragmentSource);
+	fisheye->overlay()->setProgramName("fisheye");
+	fisheye->overlay()->setTextureLayer(cubeMap.get(), 0);
+	fisheye->overlay()->SetVertexShader(vertexSource);
+	fisheye->overlay()->SetFragmentShader(fragmentSource);
 	fisheye->getOrCreateStateSet()->addUniform(new osg::Uniform("uEnvironmentMap", 0));
 	return fisheye;
 }
@@ -169,8 +169,8 @@ osg::Image* Cubemap::toHemisphericalImage(int width, int height)
 			CubemapSurface* face = getFace(alt, azimuth);
 			osg::Image* faceImage = face->Image();
 			osg::Vec3d sundir = Utils::solarAngle2Vector(alt, azimuth);
-			osg::Vec3d targetPos = face->_pos + sundir * 10000;
-			osg::Vec3d screenPos = targetPos * face->_viewProjMatrix;
+			osg::Vec3d targetPos = face->m_pos + sundir * 10000;
+			osg::Vec3d screenPos = targetPos * face->m_viewProjMatrix;
 			double u = (screenPos.x() + 1.0) * 0.5;
 			double v = (screenPos.y() + 1.0) * 0.5;
 			osg::Vec4 color = faceImage->getColor(osg::Vec2(u, v));
@@ -208,8 +208,8 @@ bool Cubemap::isShadowed(double alt, double azimuth)
 	CubemapSurface* face = getFace(alt, azimuth);
 	osg::Image* faceImage = face->Image();
 	osg::Vec3d sundir = Utils::solarAngle2Vector(alt, azimuth);
-	osg::Vec3d targetPos = face->_pos + sundir * 10000;
-	osg::Vec3d screenPos = targetPos * face->_viewProjMatrix;
+	osg::Vec3d targetPos = face->m_pos + sundir * 10000;
+	osg::Vec3d screenPos = targetPos * face->m_viewProjMatrix;
 	double u = (screenPos.x() + 1.0) * 0.5;
 	double v = (screenPos.y() + 1.0) * 0.5;
 	osg::Vec4 color = faceImage->getColor(osg::Vec2(u, v));

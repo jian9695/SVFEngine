@@ -12,40 +12,40 @@ SolarInteractiveHandler::SolarInteractiveHandler(
 	SolarParam* solarParam,
 	OnResultsUpdated resultsCallback)
 {
-	_viewer = viewer;
-	_manip = manip;
-	_root = root;
-	_solarParam = solarParam;
-	_resultsCallback = resultsCallback;
-	_sceneNode = sceneNode;
-	_mapNode = mapNode;
+	m_viewer = viewer;
+	m_manip = manip;
+	m_root = root;
+	m_solarParam = solarParam;
+	m_resultsCallback = resultsCallback;
+	m_sceneNode = sceneNode;
+	m_mapNode = mapNode;
 
-  if (_mapNode)
-		_cubemap = Cubemap::create(512, mapNode);
+  if (m_mapNode)
+		m_cubemap = Cubemap::create(512, mapNode);
 	else
-		_cubemap = Cubemap::create(512, sceneNode);
-	_cubemap->setNodeMask(false);
-	root->addChild(_cubemap);
+		m_cubemap = Cubemap::create(512, sceneNode);
+	m_cubemap->setNodeMask(false);
+	root->addChild(m_cubemap);
 
-	for (int i = 0; i < _cubemap->getNumChildren(); i++)
+	for (int i = 0; i < m_cubemap->getNumChildren(); i++)
 	{
-		_cubemap->getFace(i)->setRenderOrder(osg::Camera::PRE_RENDER, i);
+		m_cubemap->getFace(i)->setRenderOrder(osg::Camera::PRE_RENDER, i);
 	}
 
 	//create a node to transform a cubemap into a fisheye view and then render onto an off-screen image for svf calculation
-	_cubemap2fisheyeCamera = _cubemap->toHemisphericalSurface();
-	_cubemap2fisheyeCamera->setRenderOrder(osg::Camera::PRE_RENDER, _cubemap->getNumChildren());
-	root->addChild(_cubemap2fisheyeCamera);
+	m_cubemap2fisheyeCamera = m_cubemap->toHemisphericalSurface();
+	m_cubemap2fisheyeCamera->setRenderOrder(osg::Camera::PRE_RENDER, m_cubemap->getNumChildren());
+	root->addChild(m_cubemap2fisheyeCamera);
 
 	//create point labels
-	_pointRenderer = new PointsRenderer;
+	m_pointRenderer = new PointsRenderer;
 
 	osg::ref_ptr<osg::Image> depthImage = new osg::Image;
 	depthImage->allocateImage(512, 512, 1, GL_DEPTH_COMPONENT, GL_FLOAT);
-	_viewer->getCamera()->attach(osg::Camera::DEPTH_BUFFER, depthImage.get());
-	_pointRenderer->setSceneDepthImage(depthImage.get());
-	_pointRenderer->setSceneCamera(_viewer->getCamera());
-	_root->addChild(_pointRenderer);
+	m_viewer->getCamera()->attach(osg::Camera::DEPTH_BUFFER, depthImage.get());
+	m_pointRenderer->setSceneDepthImage(depthImage.get());
+	m_pointRenderer->setSceneCamera(m_viewer->getCamera());
+	m_root->addChild(m_pointRenderer);
 }
 
 SolarInteractiveHandler::~SolarInteractiveHandler()
@@ -66,7 +66,7 @@ void SolarInteractiveHandler::printfVec3(osg::Vec3 v)
 void SolarInteractiveHandler::computeMouseIntersection(osgUtil::LineSegmentIntersector* ray)
 {
 	osg::Vec3d orieye, oricenter, oriup;
-	_viewer->getCamera()->getViewMatrixAsLookAt(orieye, oricenter, oriup);
+	m_viewer->getCamera()->getViewMatrixAsLookAt(orieye, oricenter, oriup);
 	if (ray->getIntersections().size() == 0)
 		return;
 	osg::Vec3d _dir = orieye - oricenter;
@@ -80,7 +80,7 @@ void SolarInteractiveHandler::computeMouseIntersection(osgUtil::LineSegmentInter
 	worldPos = worldPos + surfaceNormal * 0.1; //offset from the surface
 
 	bool hasSpatialRef = isEarth();
-	osg::Vec3d geoPos = osg::Vec3d(_solarParam->lon, _solarParam->lat, _solarParam->elev + worldPos.z());
+	osg::Vec3d geoPos = osg::Vec3d(m_solarParam->m_lon, m_solarParam->m_lat, m_solarParam->m_elev + worldPos.z());
 	osg::Matrixd local2world = osg::Matrixd::identity();
 	if (hasSpatialRef)
 	{
@@ -90,22 +90,22 @@ void SolarInteractiveHandler::computeMouseIntersection(osgUtil::LineSegmentInter
 		surfaceNormal.normalize();
 	}
 
-	for (int i = 0; i < _cubemap->getNumChildren(); i++)
+	for (int i = 0; i < m_cubemap->getNumChildren(); i++)
 	{
-		CubemapSurface* cameraBuffer = (CubemapSurface*)_cubemap->getChild(i);
-		cameraBuffer->_pos = worldPos;
-		cameraBuffer->_local2World = local2world;
+		CubemapSurface* cameraBuffer = (CubemapSurface*)m_cubemap->getChild(i);
+		cameraBuffer->m_pos = worldPos;
+		cameraBuffer->m_local2World = local2world;
 		cameraBuffer->update();
 	}
-	_cubemap->setNodeMask(true);
+	m_cubemap->setNodeMask(true);
 	//_viewer->setCameraManipulator(nullptr, false);
 	//_viewer->getCamera()->setNodeMask(false);
-	_viewer->frame();
+	m_viewer->frame();
 	for (size_t i = 0; i < 2; i++)
 	{
-		_viewer->frame();
+		m_viewer->frame();
 	}
-	_cubemap->setNodeMask(false);
+	m_cubemap->setNodeMask(false);
 	//_viewer->setCameraManipulator(nullptr, false);
 	//_viewer->getCamera()->setNodeMask(true);
 
@@ -118,18 +118,19 @@ void SolarInteractiveHandler::computeMouseIntersection(osgUtil::LineSegmentInter
 	//osg::ref_ptr<osg::Image> fisheye = _cubemap->toHemisphericalImage(512, 512);
 	//osgDB::writeImageFile(*fisheye, "fisheye2.png");
 	//osgDB::writeImageFile(*_cubemap2fisheyeCamera->Image(), "fisheye.png");
-	double svf = Utils::calSVF(_cubemap2fisheyeCamera->Image().get(), false);
+	double svf = Utils::calSVF(m_cubemap2fisheyeCamera->Image().get(), false);
 
-	SolarParam param = *_solarParam;
-	param.lon = geoPos.x();
-	param.lat = geoPos.y();
-	param.elev = param.elev + max(geoPos.z(), 0);
-	param.slope = Utils::calculateSlope(surfaceNormal);
-	param.aspect = Utils::calculateAspect(surfaceNormal);
+	SolarParam param = *m_solarParam;
+	param.m_lon = geoPos.x();
+	param.m_lat = geoPos.y();
+	param.m_elev = param.m_elev + max(geoPos.z(), 0);
+	param.m_slope = Utils::calculateSlope(surfaceNormal);
+	param.m_aspect = Utils::calculateAspect(surfaceNormal);
 	SolarRadiation solarRad = calSolar(param);
-	solarRad.svf = svf;
-	_resultsCallback(svf, solarRad);
-	_pointRenderer->pushPoint(worldPos, param, solarRad);
+	solarRad.m_svf = svf;
+	m_resultsCallback(svf, solarRad);
+	SolarRadiationPoint radPoint(worldPos, param, solarRad);
+	m_pointRenderer->pushPoint(radPoint, m_cubemap2fisheyeCamera->Image().get());
 }
 
 bool SolarInteractiveHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa)
@@ -162,17 +163,17 @@ bool SolarInteractiveHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GU
 			int key = ea.getUnmodifiedKey();
 			if (key == osgGA::GUIEventAdapter::KEY_Delete || key == osgGA::GUIEventAdapter::KEY_KP_Delete || key == osgGA::GUIEventAdapter::KEY_BackSpace || key == 65454)
 			{
-				_pointRenderer->popPoint();
+				m_pointRenderer->popPoint();
 				return true;
 			}
 			else if (key == osgGA::GUIEventAdapter::KEY_Z)
 			{
-				_pointRenderer->undo();
+				m_pointRenderer->undo();
 				return true;
 			}
 			else if (key == osgGA::GUIEventAdapter::KEY_Y)
 			{
-				_pointRenderer->redo();
+				m_pointRenderer->redo();
 				return true;
 			}
 			else if (key == osgGA::GUIEventAdapter::KEY_E)
@@ -182,7 +183,7 @@ bool SolarInteractiveHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GU
 				std::stringstream filenameSS;
 				filenameSS << 1900 + now->tm_year << "-" << now->tm_mon + 1 << "-" << now->tm_mday
 					<< "-" << now->tm_hour << "-" << now->tm_min << "-" << now->tm_sec << ".csv";
-				_pointRenderer->exportPoints(filenameSS.str());
+				m_pointRenderer->exportPoints(filenameSS.str());
 				return true;
 			}
 			//printf("%d,%d,%d\n", key, osgGA::GUIEventAdapter::KEY_Z, osgGA::GUIEventAdapter::KEY_Y);
@@ -193,82 +194,72 @@ bool SolarInteractiveHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GU
 
 SolarRadiation SolarInteractiveHandler::calSolar(SolarParam& solarParam)
 {
-	osg::Image* img = _cubemap2fisheyeCamera->Image().get();
+	osg::Image* img = m_cubemap2fisheyeCamera->Image().get();
 	SolarRadiation annualRad;
 	annualRad.Zero();
 	std::vector<SolarRadiation> dailyRads;
 	
-	int startDay = solarParam.startDay;
-	int endDay = solarParam.endDay;
-	if (solarParam.isSingleDay && endDay > startDay)
+	int startDay = solarParam.m_startDay;
+	int endDay = solarParam.m_endDay;
+	if (solarParam.m_isSingleDay && endDay > startDay)
 		endDay = startDay;
 	int lastSteps = 0;
 	GrassSolar rsun;
 	for (int day = startDay; day <= endDay; day++)
 	{
-		solarParam.day = day;
+		solarParam.m_day = day;
 		std::vector<SunVector> sunVecs = rsun.getSunVectors(solarParam);
 		if (lastSteps != sunVecs.size())
 		{
-			if (solarParam.shadowInfo)
-				delete[] solarParam.shadowInfo;
-			solarParam.shadowInfo = new bool[sunVecs.size()];
+			if (solarParam.m_shadowInfo)
+				delete[] solarParam.m_shadowInfo;
+			solarParam.m_shadowInfo = new bool[sunVecs.size()];
 		}
 		std::string shadowInfo = "";
 		for (int n = 0; n < sunVecs.size(); n++)
 		{
 			SunVector sunVec = sunVecs[n];
-			solarParam.shadowInfo[n] = _cubemap->isShadowed((double)sunVec.alt, (double)sunVec.azimuth);
-			shadowInfo += (solarParam.shadowInfo[n] ? "1" : "0");
+			solarParam.m_shadowInfo[n] = m_cubemap->isShadowed((double)sunVec.m_alt, (double)sunVec.m_azimuth);
+			shadowInfo += (solarParam.m_shadowInfo[n] ? "1" : "0");
 			if (n < sunVecs.size() - 1)
 				shadowInfo += ",";
 		}
 		//printf("%s\n", shadowInfo.data());
-		solarParam.day = day;
+		solarParam.m_day = day;
 		SolarRadiation dailyRad = rsun.calculateSolarRadiation(solarParam);
 		dailyRads.push_back(dailyRad);
 		annualRad = annualRad + dailyRad;
 	}
-	if (solarParam.shadowInfo)
-		delete[] solarParam.shadowInfo;
+	if (solarParam.m_shadowInfo)
+		delete[] solarParam.m_shadowInfo;
 	return annualRad;
 }
 
 std::tuple<bool, osg::Vec3d, osg::Matrixd> SolarInteractiveHandler::getGeoTransform(osg::Vec3d worldPos)
 {
 	osg::Matrixd local2World = osg::Matrixd::identity();
-	if (!_mapNode)
+	if (!m_mapNode)
 		return std::make_tuple(false, worldPos, local2World);
 	osg::Vec3d geoPos;
-	_mapNode->getMapSRS()->transformFromWorld(worldPos, geoPos);
-	_mapNode->getMapSRS()->createLocalToWorld(geoPos, local2World);
+	m_mapNode->getMapSRS()->transformFromWorld(worldPos, geoPos);
+	m_mapNode->getMapSRS()->createLocalToWorld(geoPos, local2World);
 	local2World = local2World * osg::Matrixd::translate(-local2World.getTrans());
 	return std::make_tuple(true, geoPos, local2World);
 }
 
-bool SolarInteractiveHandler::isEarth() { return _mapNode; }
+bool SolarInteractiveHandler::isEarth() { return m_mapNode; }
 
 void SolarInteractiveHandler::postDrawUpdate()
 {
-	_pointRenderer->postDrawUpdate();
+	m_pointRenderer->postDrawUpdate();
 }
 
-std::tuple<bool, SolarRadiationPoint> SolarInteractiveHandler::queryPoint(const float& mouseX, const float& mouseY)
+bool SolarInteractiveHandler::queryPoint(const float& mouseX, const float& mouseY, SolarRadiationPoint& solarPoint)
 {
-	SolarRadiationPoint solarPoint;
-	osg::ref_ptr<osgUtil::LineSegmentIntersector> ray = new osgUtil::LineSegmentIntersector(osgUtil::Intersector::PROJECTION, mouseX, mouseY);
-	osgUtil::IntersectionVisitor visitor(ray);
-	_viewer->getCamera()->accept(visitor);
-	if (ray->getIntersections().size() == 0)
-		return std::make_tuple(false, solarPoint);
-	//computeMouseIntersection(ray.get());
+	return m_pointRenderer->queryPoint(mouseX, mouseY, solarPoint);
+}
 
-	osg::Vec3d curcenter = ray->getFirstIntersection().getWorldIntersectPoint();
-	osg::Vec3d cureye = ray->getFirstIntersection().getWorldIntersectPoint();
-
-	osg::Vec3d worldPos = ray->getFirstIntersection().getWorldIntersectPoint();
-	osg::Vec3d surfaceNormal = ray->getFirstIntersection().getWorldIntersectNormal();
-	surfaceNormal.normalize();
-	worldPos = worldPos + surfaceNormal * 0.1; //offset from the surface
-	return std::make_tuple(true, solarPoint);
+osg::Image* SolarInteractiveHandler::getFisheyeForPoint(const int& pointId)
+{
+	return m_pointRenderer->getFisheyeForPoint(pointId);
 }

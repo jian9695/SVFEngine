@@ -1,7 +1,9 @@
 #pragma once
+
 #ifdef _WIN32 || WIN32 
 #include <Windows.h>
 #endif
+
 #include <osg/Texture2D>
 #include <osg/Geometry>
 #include <osg/Camera>
@@ -10,38 +12,38 @@
 
 struct ColorUB4
 {
-	unsigned char _r, _g, _b, _a;
+	unsigned char m_r, m_g, m_b, m_a;
 	ColorUB4(unsigned char r, unsigned char g, unsigned char b, unsigned char a)
 	{
-		_r = r; _g = g; _b = b; _a = a;
+		m_r = r; m_g = g; m_b = b; m_a = a;
 	}
 	ColorUB4(osg::Vec4 color)
 	{
-		_r = (unsigned char)(color.r() * 255);
-		_g = (unsigned char)(color.g() * 255);
-		_b = (unsigned char)(color.b() * 255);
-		_a = (unsigned char)(color.a() * 255);
+		m_r = (unsigned char)(color.r() * 255);
+		m_g = (unsigned char)(color.g() * 255);
+		m_b = (unsigned char)(color.b() * 255);
+		m_a = (unsigned char)(color.a() * 255);
 	}
 };
 
 struct ColorUB3
 {
-	unsigned char _r, _g, _b;
+	unsigned char m_r, m_g, m_b;
 	ColorUB3(unsigned char r, unsigned char g, unsigned char b)
 	{
-		_r = r; _g = g; _b = b;
+		m_r = r; m_g = g; m_b = b;
 	}
 	ColorUB3(osg::Vec4 color)
 	{
-		_r = (unsigned char)(color.r() * 255);
-		_g = (unsigned char)(color.g() * 255);
-		_b = (unsigned char)(color.b() * 255);
+		m_r = (unsigned char)(color.r() * 255);
+		m_g = (unsigned char)(color.g() * 255);
+		m_b = (unsigned char)(color.b() * 255);
 	}
 	ColorUB3(osg::Vec3 color)
 	{
-		_r = (unsigned char)(color.x() * 255);
-		_g = (unsigned char)(color.y() * 255);
-		_b = (unsigned char)(color.z() * 255);
+		m_r = (unsigned char)(color.x() * 255);
+		m_g = (unsigned char)(color.y() * 255);
+		m_b = (unsigned char)(color.z() * 255);
 	}
 };
 
@@ -50,12 +52,12 @@ class ProgramBinder
 public:
 	ProgramBinder(const std::string& name, osg::StateSet* stateset) 
 	{
-		Initialize(name, stateset);
+		initialize(name, stateset);
 	}
 
 	ProgramBinder() { m_stateset = nullptr; }
 
-	void Initialize(const std::string& name, osg::StateSet* stateset)
+	void initialize(const std::string& name, osg::StateSet* stateset)
 	{
 		m_program = new osg::Program;
 		m_stateset = stateset;
@@ -63,7 +65,7 @@ public:
 		m_stateset->setAttributeAndModes(m_program.get(), osg::StateAttribute::ON);
 	}
 
-	void SetVertexShader(const std::string& source) 
+	void setVertexShader(const std::string& source) 
 	{ 
 		if (!m_stateset)
 			return;
@@ -78,7 +80,7 @@ public:
 		}
 	}
 
-	void SetFragmentShader(const std::string& source) 
+	void setFragmentShader(const std::string& source) 
 	{
 		if (!m_stateset)
 			return;
@@ -99,6 +101,7 @@ public:
 		m_vertexShader->setName((name + ".vertex").data());
 		m_fragmentShader->setName((name + ".fragment").data());
 	}
+
 private:
 	osg::ref_ptr<osg::Program> m_program;
 	osg::ref_ptr<osg::Shader> m_vertexShader;
@@ -112,9 +115,9 @@ public:
 	ScreenOverlay(const char* vertexShader = nullptr, const char* fragmentShader = nullptr);
 	~ScreenOverlay();
 
-	void SetTextureLayer(osg::Texture* tex, int unit = 0);
+	void setTextureLayer(osg::Texture* tex, int unit = 0);
 
-	std::string DefaultVertexShader()
+	std::string defaultVertexShader()
 	{
 		static char vertexSource[] =
 			"void main(void)\n"
@@ -125,7 +128,7 @@ public:
 		return vertexSource;
 	}
 
-	std::string DefaultFragmentShader()
+	std::string defaultFragmentShader()
 	{
 		static char fragmentSource[] =
 			"uniform sampler2D texture0;\n"
@@ -137,9 +140,10 @@ public:
 		return fragmentSource;
 	}
 
-	void SetVertexShader(const std::string& source) { m_programBinder.SetVertexShader(source); }
-	void SetFragmentShader(const std::string& source) { m_programBinder.SetFragmentShader(source); }
+	void SetVertexShader(const std::string& source) { m_programBinder.setVertexShader(source); }
+	void SetFragmentShader(const std::string& source) { m_programBinder.setFragmentShader(source); }
 	void setProgramName(const std::string& name) { m_programBinder.setProgramName(name); }
+
 private:
 	ProgramBinder m_programBinder;
 };
@@ -194,10 +198,10 @@ public:
 	osg::ref_ptr<osg::Texture2D> Texture() { return m_texture; }
 	osg::ref_ptr<osg::Image> Image() { return m_image; };
 
-	int Width() { return m_image->s(); }
-	int Height() { return m_image->t(); }
+	int width() { return m_image->s(); }
+	int height() { return m_image->t(); }
 
-	void Resize(int newWidth, int newHeight)
+	void resize(int newWidth, int newHeight)
 	{
 		if (!m_texture)
 			return;
@@ -216,6 +220,7 @@ class OverlayRenderSurface : public RenderSurface
 {
 private:
 	osg::ref_ptr<ScreenOverlay> m_overlay;
+
 public:
 	//internalFormat: GL_RGBA,          GL_RGB,           GL_RGB32F_ARB, GL_RGBA32F_ARB, GL_ALPHA32F_ARB
 	//sourceFormat:   GL_RGBA,          GL_RGB,           GL_RGB,        GL_RGBA,        GL_ALPHA
@@ -227,6 +232,6 @@ public:
 		this->addChild(m_overlay.get());
 	}
 
-	ScreenOverlay* Overlay() { return m_overlay.get(); };
+	ScreenOverlay* overlay() { return m_overlay.get(); };
 };
 

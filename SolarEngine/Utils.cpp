@@ -1,5 +1,7 @@
 #include "Utils.h"
 #include "GrassSolar.h"
+#include <osg/Geode>
+#include <osg/Geometry>
 #include <sstream>
 
 //Angle between vector (x,y) and the positive Y axis (0,1) with origin at (0,0)
@@ -80,7 +82,7 @@ std::vector<osg::Vec3d> Utils::sunVector2LightDir(std::vector<SunVector>& sunvec
 	std::vector<osg::Vec3d> vsuns;
 	for (int i = 0; i < sunvectors.size(); i++)
 	{
-		vsuns.push_back(Utils::solarAngle2Vector(sunvectors[i].alt, sunvectors[i].azimuth));
+		vsuns.push_back(Utils::solarAngle2Vector(sunvectors[i].m_alt, sunvectors[i].m_azimuth));
 	}
 	return vsuns;
 }
@@ -145,48 +147,30 @@ SolarRadiation Utils::calSolar(osg::Image* img, SolarParam* solarParam, osg::Vec
 	annualRad.Zero();
 	std::vector<SolarRadiation> dailyRads;
 	SolarParam param = *solarParam;
-	param.slope = Utils::calculateSlope(normal);
-	param.aspect = Utils::calculateAspect(normal);
+	param.m_slope = Utils::calculateSlope(normal);
+	param.m_aspect = Utils::calculateAspect(normal);
 
-	int startDay = param.startDay;
-	int endDay = param.endDay;
+	int startDay = param.m_startDay;
+	int endDay = param.m_endDay;
 	if (endDay > startDay)
 		endDay = startDay;
 	int lastSteps = 0;
 	GrassSolar rsun;
 	for (int day = startDay; day <= endDay; day++)
 	{
-		param.startDay = day;
-		//std::vector<bool> shadowMasks;
-		//std::vector<bool> shadowMasksRayCaster;
+		param.m_startDay = day;
 		std::vector<SunVector> sunVecs = rsun.getSunVectors(param);
-		//shadowMasks.resize(sunVecs.size());
 		if (lastSteps != sunVecs.size())
 		{
-			if (param.shadowInfo)
-				delete[] param.shadowInfo;
-			param.shadowInfo = new bool[sunVecs.size()];
+			if (param.m_shadowInfo)
+				delete[] param.m_shadowInfo;
+			param.m_shadowInfo = new bool[sunVecs.size()];
 		}
 		for (int n = 0; n < sunVecs.size(); n++)
 		{
 			SunVector sunVec = sunVecs[n];
-			//osg::Vec3d sundir = GrassSolar::solarAngle2Vector(sunVec.alt, sunVec.azimuth);
-			//osg::Vec3d start = pos;
-			//osg::Vec3d end = pos + sundir * 10000000;
-			//osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector = new osgUtil::LineSegmentIntersector(start, end);
-			//osgUtil::IntersectionVisitor intersectVisitor(intersector.get());
-			//sceneNode->accept(intersectVisitor);
-			//if (intersector->containsIntersections())
-			//{
-			//	shadowMasksRayCaster.push_back(true);
-			//}
-			//else
-			//{
-			//	shadowMasksRayCaster.push_back(false);
-			//}
-			double radius = (90.0 - sunVec.alt) / 90.0 * 0.5;
-			//double radius = sin(osg::DegreesToRadians(90.0 - sunVec.alt)) * 0.5;
-			double theta = sunVec.azimuth - 90;
+			double radius = (90.0 - sunVec.m_alt) / 90.0 * 0.5;
+			double theta = sunVec.m_azimuth - 90;
 			if (theta < 0)
 				theta += 360;
 			theta = osg::DegreesToRadians(theta);
@@ -195,35 +179,16 @@ SolarRadiation Utils::calSolar(osg::Image* img, SolarParam* solarParam, osg::Vec
 			x += 0.5;
 			y += 0.5;
 			osg::Vec4 color = img->getColor(osg::Vec2(x, y));
-			param.shadowInfo[n] = color.a() > 0.7 ? true : false;
-			//shadowMasks[n] = param.shadowInfo[n];
+			param.m_shadowInfo[n] = color.a() > 0.7 ? true : false;
 		}
 
-		/*for (int n = 0; n < sunVecs.size(); n++)
-		{
-			printf("%d", shadowMasks[n] ? 1 : 0);
-			if(n == sunVecs.size() - 1)
-				printf("\n");
-			else
-				printf(",");
-		}
-
-		for (int n = 0; n < sunVecs.size(); n++)
-		{
-			printf("%d", shadowMasksRayCaster[n] ? 1 : 0);
-			if (n == sunVecs.size() - 1)
-				printf("\n");
-			else
-				printf(",");
-		}*/
-
-		param.day = day;
+		param.m_day = day;
 		SolarRadiation dailyRad = rsun.calculateSolarRadiation(param);
 		dailyRads.push_back(dailyRad);
 		annualRad = annualRad + dailyRad;
 	}
-	if (param.shadowInfo)
-		delete[] param.shadowInfo;
+	if (param.m_shadowInfo)
+		delete[] param.m_shadowInfo;
 	return annualRad;
 }
 
@@ -235,11 +200,11 @@ std::string Utils::value2String(float value, int precision)
 	return buf.str();
 }
 
-osg::Vec3 Utils::WorldPosFromDepth(float depth, osg::Matrixd& projMatrixInv, osg::Matrixd& viewMatrixInv, float u, float v)
+osg::Vec3 Utils::worldPosFromDepth(float depth, const osg::Matrixd& projMatrixInv, const osg::Matrixd& viewMatrixInv, const osg::Vec2& uv)
 {
 	float z = depth * 2.0 - 1.0;
 
-	osg::Vec4 clipSpacePosition(u * 2.0 - 1.0, v * 2.0 - 1.0, z, 1.0);
+	osg::Vec4 clipSpacePosition(uv.x() * 2.0 - 1.0, uv.y() * 2.0 - 1.0, z, 1.0);
 	osg::Vec4 viewSpacePosition = clipSpacePosition * projMatrixInv;
 
 	// Perspective division
@@ -249,3 +214,37 @@ osg::Vec3 Utils::WorldPosFromDepth(float depth, osg::Matrixd& projMatrixInv, osg
 	return osg::Vec3(worldSpacePosition.x(), worldSpacePosition.y(), worldSpacePosition.z());
 }
 
+std::string Utils::padRight(std::string str, const size_t num, const char paddingChar)
+{
+	if (num > str.size())
+		str.insert(str.size(), num - str.size(), paddingChar);
+	return str;
+}
+
+bool Utils::nodeHasNormals(osg::Node* node)
+{
+	osg::Geode* geode = dynamic_cast<osg::Geode*>(node);
+	osg::Group* group = dynamic_cast<osg::Group*>(node);
+	if (geode)
+	{
+		for (int n = 0; n < geode->getNumDrawables(); n++)
+		{
+			osg::Geometry* geom = dynamic_cast<osg::Geometry*>(geode->getChild(n));
+			if (!geom)
+				continue;
+			if (geom->getNormalArray())
+				return true;
+		}
+	}
+
+	if (group)
+	{
+		for (int n = 0; n < group->getNumChildren(); n++)
+		{
+			if (nodeHasNormals(group->getChild(n)))
+				return true;
+		}
+	}
+
+	return false;
+}

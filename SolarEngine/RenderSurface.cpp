@@ -24,15 +24,15 @@ ScreenOverlay::ScreenOverlay(const char* vertexShader, const char* fragmentShade
 	this->addDrawable(geom.get());
 	this->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
 
-	m_programBinder.Initialize("overlayProgram", this->getOrCreateStateSet());
-	std::string vertexShaderSource = DefaultVertexShader();
-	std::string fragmentShaderSource = DefaultFragmentShader();
+	m_programBinder.initialize("overlayProgram", this->getOrCreateStateSet());
+	std::string vertexShaderSource = defaultVertexShader();
+	std::string fragmentShaderSource = defaultFragmentShader();
 	if (vertexShader)
 		vertexShaderSource = vertexShader;
 	if (fragmentShader)
 		fragmentShaderSource = fragmentShader;
-	m_programBinder.SetVertexShader(vertexShaderSource);
-	m_programBinder.SetFragmentShader(fragmentShaderSource);
+	m_programBinder.setVertexShader(vertexShaderSource);
+	m_programBinder.setFragmentShader(fragmentShaderSource);
 
 	this->getOrCreateStateSet()->addUniform(new osg::Uniform("texture0", 0));
 }
@@ -42,7 +42,7 @@ ScreenOverlay::~ScreenOverlay()
 
 }
 
-void ScreenOverlay::SetTextureLayer(osg::Texture* tex, int unit)
+void ScreenOverlay::setTextureLayer(osg::Texture* tex, int unit)
 {
 	getOrCreateStateSet()->setTextureAttributeAndModes(unit, tex, osg::StateAttribute::ON);
 }

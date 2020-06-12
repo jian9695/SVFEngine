@@ -109,12 +109,10 @@
   <ItemGroup>
     <ClInclude Include="Cubemap.h" />
     <ClInclude Include="CustomControls.h" />
-    <ClInclude Include="GDAL_DS.h" />
     <ClInclude Include="GrassSolar.h" />
     <ClInclude Include="ModelLoader.h" />
     <ClInclude Include="PointsRenderer.h" />
     <ClInclude Include="RenderSurface.h" />
-    <ClInclude Include="ShapeFile.h" />
     <ClInclude Include="SolarInteractiveHandler.h" />
     <ClInclude Include="TypeDef.h" />
     <ClInclude Include="Utils.h" />
@@ -126,7 +124,6 @@
     <ClCompile Include="ModelLoader.cpp" />
     <ClCompile Include="PointsRenderer.cpp" />
     <ClCompile Include="RenderSurface.cpp" />
-    <ClCompile Include="ShapeFile.cpp" />
     <ClCompile Include="SolarInteractiveHandler.cpp" />
     <ClCompile Include="TypeDef.cpp" />
     <ClCompile Include="Utils.cpp" />

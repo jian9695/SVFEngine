@@ -18,12 +18,6 @@
     <ClInclude Include="CustomControls.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ShapeFile.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GDAL_DS.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="GrassSolar.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -51,9 +45,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CustomControls.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ShapeFile.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="GrassSolar.cpp">

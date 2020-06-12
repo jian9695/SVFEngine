@@ -19,6 +19,7 @@
 #ifdef _WIN32 || WIN32 
 #include <Windows.h>
 #endif
+
 #include <osgEarthUtil/Common>
 #include <osgEarth/Common>
 #include <osgEarth/Units>

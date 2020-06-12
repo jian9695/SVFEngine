@@ -35,8 +35,8 @@ email: hofierka@geomodel.sk,marcel.suri@jrc.it,suri@geomodel.sk,
 #include <sstream>
 #include <osg/Matrix>
 #include <osg/Geometry>
-#include <osgUtil/IntersectionVisitor>
 #include <osg/LineSegment>
+#include <osgUtil/IntersectionVisitor>
 #include <osgUtil/LineSegmentIntersector>
 
 #define M_PI 3.1415926
@@ -74,6 +74,12 @@ double cdh = DSKY;//clear-sky index for diffuse component
 #define alb 0.2
 #define pi 3.14159265358979323846
 #define earthRadiusKm 6371000.0
+
+void printfVec3(osg::Vec3 v)
+{
+	printf("(%f,%f,%f)\n", v.x(), v.y(), v.z());
+}
+
 // This function converts decimal degrees to radians
 double GrassSolar::deg2rad2(double deg) {
 	return (deg * pi / 180);
@@ -84,80 +90,29 @@ double GrassSolar::rad2deg2(double rad) {
 	return (rad * 180 / pi);
 };
 
-
-int m1[12] = { 31,28,31,30,31,30,31,31,30,31,30,31 };
-int m2[12] = { 31,29,31,30,31,30,31,31,30,31,30,31 };
-int monthDay2NumDay(int year, int month, int day)
-{
-
-	int numday = 0;
-	int* months = m1;
-	if (year % 400 == 0 || (year % 4 == 0 && year % 100 != 0)) {
-		months = m2;
-	}
-	for (int i = 0; i < month - 1; i++)
-	{
-		numday += months[i];
-	}
-	numday += day;
-	return numday;
-}
-
-void numDay2MonthDay(int year, int num, int& month, int& day)
-{
-
-
-	int curDay = 0;
-	int* months = m1;
-	if (year % 400 == 0 || (year % 4 == 0 && year % 100 != 0)) {
-		months = m2;
-	}
-	month = 0;
-	day = 0;
-	for (int i = 0; i < 12; i++)
-	{
-		if (curDay + months[i] >= num)
-		{
-			month = i + 1;
-			day = num - curDay;
-			break;
-		}
-		curDay += months[i];
-	}
-
-
-}
-
-void printfVec3(osg::Vec3 v)
-{
-	printf("(%f,%f,%f)\n", v.x(), v.y(), v.z());
-}
-
 SolarRadiation GrassSolar::calculateSolarRadiation(SolarParam& solar_param)
 {
-	int i, j, l;
 	double global;
-
 	double lum, q1;
 	TempVariables tmpval;
-	tmpval.linke = solar_param.linke;
-	tmpval.latitude = solar_param.lat;
-	tmpval.day = solar_param.day;
-	tmpval.step = solar_param.time_step;
-	tmpval.aspect = solar_param.aspect;
-	tmpval.slope = solar_param.slope;
-	tmpval.shadowInfo = solar_param.shadowInfo;
-	tmpval.tien = solar_param.isShadowed;
-	tmpval.elev = solar_param.elev;
-	cbh = solar_param.bsky;
-	cdh = solar_param.dsky;
-	if (COLLECT_SUN_VECTOR)
+	tmpval.linke = solar_param.m_linke;
+	tmpval.latitude = solar_param.m_lat;
+	tmpval.day = solar_param.m_day;
+	tmpval.step = solar_param.m_time_step;
+	tmpval.aspect = solar_param.m_aspect;
+	tmpval.slope = solar_param.m_slope;
+	tmpval.shadowInfo = solar_param.m_shadowInfo;
+	tmpval.tien = solar_param.m_isShadowed;
+	tmpval.elev = solar_param.m_elev;
+	cbh = solar_param.m_bsky;
+	cdh = solar_param.m_dsky;
+	if (m_COLLECT_SUN_VECTOR)
 	{
-		SunVectors.clear();
+		m_sunVectors.clear();
 	}
 
 	SolarRadiation result;
-	_curTimeStep = 0;
+	m_curTimeStep = 0;
 	//tmpval.aspect = 90;
 	//tmpval.slope = 0;
 
@@ -208,17 +163,17 @@ SolarRadiation GrassSolar::calculateSolarRadiation(SolarParam& solar_param)
 	lum = lumcline2(tmpval);
 	lum = RAD * asin(lum);
 
-	double assignedTime = solar_param.time.toDecimalHour();
-	joules2(tmpval, solar_param.isInstantaneous, assignedTime);
+	double assignedTime = solar_param.m_time.toDecimalHour();
+	joules2(tmpval, solar_param.m_isInstantaneous, assignedTime);
 	global = tmpval.beam_e + tmpval.diff_e + tmpval.refl_e;
 
-	result.global = global;
-	result.beam = tmpval.beam_e;
-	result.diffuse = tmpval.diff_e;
-	result.reflected = tmpval.refl_e;
+	result.m_global = global;
+	result.m_beam = tmpval.beam_e;
+	result.m_diffuse = tmpval.diff_e;
+	result.m_reflected = tmpval.refl_e;
 
 	//printf("insol=%f,beam=%f,diff=%f,refl=%f,global=%f\n", tmpval.insol_t,tmpval.beam_e,tmpval.diff_e,tmpval.refl_e,global);
-	COLLECT_SUN_VECTOR = false;
+	m_COLLECT_SUN_VECTOR = false;
 	return result;
 
 }
@@ -370,14 +325,14 @@ void GrassSolar::joules2(TempVariables& tmpval, const bool& isInstaneous, const 
 
 		if (assignedTime < tmpval.sunrise_time || assignedTime > tmpval.sunset_time)
 		{
-			if (COLLECT_SUN_VECTOR)
+			if (m_COLLECT_SUN_VECTOR)
 			{
 				SunVector sunvec;
-				sunvec.azimuth = 0;
-				sunvec.alt = 0;
-				sunvec.time = tmpval.lum_time;
-				SunVectors.push_back(sunvec);
-				_curTimeStep++;
+				sunvec.m_azimuth = 0;
+				sunvec.m_alt = 0;
+				sunvec.m_time = tmpval.lum_time;
+				m_sunVectors.push_back(sunvec);
+				m_curTimeStep++;
 			}
 			return;
 		}
@@ -425,21 +380,21 @@ void GrassSolar::joules2(TempVariables& tmpval, const bool& isInstaneous, const 
 
 		com_par(tmpval);
 		//printf("time=%f,horizontal=%f,vertical=%f\n",tmpval.lum_time,rad2deg2(tmpval.A0),rad2deg2(tmpval.h0));
-		if (COLLECT_SUN_VECTOR)
+		if (m_COLLECT_SUN_VECTOR)
 		{
 			SunVector sunvec;
-			sunvec.azimuth = rad2deg2(tmpval.A0);
-			sunvec.alt = rad2deg2(tmpval.h0);
-			sunvec.time = tmpval.lum_time;
-			SunVectors.push_back(sunvec);
-			_curTimeStep++;
+			sunvec.m_azimuth = rad2deg2(tmpval.A0);
+			sunvec.m_alt = rad2deg2(tmpval.h0);
+			sunvec.m_time = tmpval.lum_time;
+			m_sunVectors.push_back(sunvec);
+			m_curTimeStep++;
 		}
 		else if (tmpval.shadowInfo)
 		{
-			tmpval.tien = tmpval.shadowInfo[_curTimeStep];
+			tmpval.tien = tmpval.shadowInfo[m_curTimeStep];
 		}
 
-		_curTimeStep++;
+		m_curTimeStep++;
 		s0 = lumcline2(tmpval);
 
 
@@ -773,11 +728,11 @@ double GrassSolar::drad_isotropic(double sh, TempVariables& tmpval)
 
 std::vector<SunVector> GrassSolar::getSunVectors(SolarParam& sparam)
 {
-	COLLECT_SUN_VECTOR = true;
-	SunVectors.clear();
+	m_COLLECT_SUN_VECTOR = true;
+	m_sunVectors.clear();
 	calculateSolarRadiation(sparam);
-	COLLECT_SUN_VECTOR = false;
-	return SunVectors;
+	m_COLLECT_SUN_VECTOR = false;
+	return m_sunVectors;
 }
 
 SolarRadiation GrassSolar::calculateSolarRadiation(SolarParam& solar_param, osg::Node* sceneNode, osg::Vec3d pos)
@@ -785,7 +740,7 @@ SolarRadiation GrassSolar::calculateSolarRadiation(SolarParam& solar_param, osg:
 	std::vector<SunVector> sunVectors = getSunVectors(solar_param);
 	std::vector<osg::Vec3d> lightDirs = Utils::sunVector2LightDir(sunVectors);
 
-	solar_param.shadowInfo = new bool[lightDirs.size()];
+	solar_param.m_shadowInfo = new bool[lightDirs.size()];
 	std::string shadowMasks = "";
 	for (size_t i = 0; i < lightDirs.size(); i++)
 	{
@@ -796,12 +751,12 @@ SolarRadiation GrassSolar::calculateSolarRadiation(SolarParam& solar_param, osg:
 		sceneNode->accept(intersectVisitor);
 		if (intersector->containsIntersections())
 		{
-			solar_param.shadowInfo[i] = true;
+			solar_param.m_shadowInfo[i] = true;
 			shadowMasks += "1";
 		}
 		else
 		{
-			solar_param.shadowInfo[i] = false;
+			solar_param.m_shadowInfo[i] = false;
 			shadowMasks += "0";
 		}
 		if (i < lightDirs.size() - 1)
@@ -810,8 +765,8 @@ SolarRadiation GrassSolar::calculateSolarRadiation(SolarParam& solar_param, osg:
 		}
 	}
 	SolarRadiation rad = calculateSolarRadiation(solar_param);
-	rad.shadowMasks = shadowMasks;
-	delete[] solar_param.shadowInfo;
+	rad.m_shadowMasks = shadowMasks;
+	delete[] solar_param.m_shadowInfo;
 	return rad;
 }
 

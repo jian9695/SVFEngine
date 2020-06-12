@@ -71,7 +71,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(vcpkg_x64)\lib;$(SolutionDir)\lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>osgEarth.lib;osgEarthFeatures.lib;osgEarthUtil.lib;osgEarthSymbology.lib;osgEarthAnnotation.lib;osg.lib;osgDB.lib;osgUtil.lib;osgViewer.lib;OpenThreads.lib;osgSim.lib;osgTerrain.lib;osgFX.lib;osgShadow.lib;osgManipulator.lib;osgText.lib;osgGA.lib;Qt5Core.lib;gdal.lib;SolarEngine.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>osgEarth.lib;osgEarthFeatures.lib;osgEarthUtil.lib;osgEarthSymbology.lib;osgEarthAnnotation.lib;osg.lib;osgDB.lib;osgUtil.lib;osgViewer.lib;OpenThreads.lib;osgSim.lib;osgTerrain.lib;osgFX.lib;osgShadow.lib;osgManipulator.lib;osgText.lib;osgGA.lib;Qt5Core.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseD|x64'">
@@ -91,16 +91,31 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(vcpkg_x64)\lib;$(SolutionDir)\lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>osgEarth.lib;osgEarthFeatures.lib;osgEarthUtil.lib;osgEarthSymbology.lib;osgEarthAnnotation.lib;osg.lib;osgDB.lib;osgUtil.lib;osgViewer.lib;OpenThreads.lib;osgSim.lib;osgTerrain.lib;osgFX.lib;osgShadow.lib;osgManipulator.lib;osgText.lib;osgGA.lib;Qt5Core.lib;gdal.lib;SolarEngine.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>osgEarth.lib;osgEarthFeatures.lib;osgEarthUtil.lib;osgEarthSymbology.lib;osgEarthAnnotation.lib;osg.lib;osgDB.lib;osgUtil.lib;osgViewer.lib;OpenThreads.lib;osgSim.lib;osgTerrain.lib;osgFX.lib;osgShadow.lib;osgManipulator.lib;osgText.lib;osgGA.lib;Qt5Core.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\SolarEngine\Cubemap.cpp" />
+    <ClCompile Include="..\SolarEngine\CustomControls.cpp" />
+    <ClCompile Include="..\SolarEngine\GrassSolar.cpp" />
+    <ClCompile Include="..\SolarEngine\ModelLoader.cpp" />
+    <ClCompile Include="..\SolarEngine\PointsRenderer.cpp" />
+    <ClCompile Include="..\SolarEngine\RenderSurface.cpp" />
+    <ClCompile Include="..\SolarEngine\SolarInteractiveHandler.cpp" />
+    <ClCompile Include="..\SolarEngine\TypeDef.cpp" />
+    <ClCompile Include="..\SolarEngine\Utils.cpp" />
     <ClCompile Include="Main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\SolarEngine\SolarEngine.vcxproj">
-      <Project>{62d74672-958e-43ab-8326-edd104916d15}</Project>
-    </ProjectReference>
+    <ClInclude Include="..\SolarEngine\Cubemap.h" />
+    <ClInclude Include="..\SolarEngine\CustomControls.h" />
+    <ClInclude Include="..\SolarEngine\GrassSolar.h" />
+    <ClInclude Include="..\SolarEngine\ModelLoader.h" />
+    <ClInclude Include="..\SolarEngine\PointsRenderer.h" />
+    <ClInclude Include="..\SolarEngine\RenderSurface.h" />
+    <ClInclude Include="..\SolarEngine\SolarInteractiveHandler.h" />
+    <ClInclude Include="..\SolarEngine\TypeDef.h" />
+    <ClInclude Include="..\SolarEngine\Utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

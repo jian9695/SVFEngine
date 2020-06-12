@@ -2,82 +2,34 @@
 #ifdef _WIN32 || WIN32 
 #include <Windows.h>
 #endif
-#include "SolarInteractiveHandler.h"
-#include "ShapeFile.h"
-#include <osg/Notify>
-#include <osgGA/GUIEventHandler>
-#include <osgGA/StateSetManipulator>
-#include <osgViewer/Viewer>
-#include <osg/Notify>
-#include <osgGA/GUIEventHandler>
-#include <osgGA/StateSetManipulator>
-#include <osgViewer/Viewer>
 
-#include <osgEarth/MapNode>
-#include <osgEarth/ImageLayer>
-#include <osgEarthUtil/ExampleResources>
-#include <osgEarthUtil/EarthManipulator>
-#include <osgEarthUtil/LogarithmicDepthBuffer>
-#include <osgEarthFeatures/FeatureModelLayer>
-#include <osgEarthDrivers/tms/TMSOptions>
-#include <osgEarthDrivers/feature_ogr/OGRFeatureOptions>
-#include <osgEarthDrivers/model_feature_geom/FeatureGeomModelOptions>
-#include <osgEarthDrivers/engine_rex/RexTerrainEngineOptions>
-#include <osgEarth/Cache>
-#include <osgEarthDrivers/cache_filesystem/FileSystemCache>
 #include <osg/Notify>
-#include <osgDB/ReadFile>
 #include <osgGA/GUIEventHandler>
+#include <osgGA/StateSetManipulator>
+#include <osgViewer/Viewer>
+#include <osgDB/ReadFile>
 #include <osgViewer/ViewerEventHandlers>
-#include <osgViewer/Viewer>
-#include <osgEarth/Registry>
-#include <osgEarthUtil/EarthManipulator>
-#include <osgEarthUtil/ExampleResources>
-#include <osgEarthSymbology/Color>
-#include "CustomControls.h"
-#include "GrassSolar.h"
-#include <osgViewer/Viewer>
-#include <osgEarth/Notify>
-#include <osgEarthUtil/EarthManipulator>
-#include <osgEarthUtil/ExampleResources>
+
 #include <osgEarth/MapNode>
 #include <osgEarth/ThreadingUtils>
 #include <osgEarth/Metrics>
-#include <iostream>
+#include <osgEarthUtil/ExampleResources>
 
+#include "CustomControls.h"
+#include "GrassSolar.h"
+#include "SolarInteractiveHandler.h"
+#include "ModelLoader.h"
 
-using namespace osgEarth::Symbology;
 using namespace osgEarth;
-using namespace osgEarth::Drivers;
-using namespace osgEarth::Features;
-using namespace osgEarth::Symbology;
 using namespace osgEarth::Util;
+//using namespace osgEarth::Drivers;
+//using namespace osgEarth::Features;
+//using namespace osgEarth::Symbology;
 
+const int UI_FONT_SIZE = 18;
 SolarParam m_solarParam;
 osg::ref_ptr<SolarInteractiveHandler> m_skyViewHandler;
-const int UI_FONT_SIZE = 18;
-
-SolarParam createSolarParam()
-{
-  SolarParam param;
-  param.aspect = 270;
-  param.slope = 0;
-  param.lon = -9999;
-  param.lat = 37.5131;
-  param.day = 183;
-  param.time_step = 1;
-  param.linke = 3.0;
-  param.startDay = param.day;
-  param.endDay = param.day;
-  param.isSingleDay = true;
-  param.isInstantaneous;
-  param.elev = 0;
-  return param;
-}
-
-void createControls(CustomControls::ControlCanvas*);
-CustomControls::ImageControl* s_imageControl = 0L;
-
+CustomControls::HBox* m_popupControl;
 std::map<std::string, CustomControls::Control*> m_controls;
 CustomControls::VBox* m_parametersControl;
 CustomControls::VBox* m_fisheyeControl;
@@ -86,6 +38,24 @@ CustomControls::LabelControl* m_svfLabel;
 CustomControls::LabelControl* m_globalRadLabel;
 CustomControls::LabelControl* m_beamRadLabel;
 CustomControls::LabelControl* m_diffuseRadLabel;
+
+SolarParam createSolarParam()
+{
+  SolarParam param;
+  param.m_aspect = 270;
+  param.m_slope = 0;
+  param.m_lon = -9999;
+  param.m_lat = 37.5131;
+  param.m_day = 183;
+  param.m_time_step = 1;
+  param.m_linke = 3.0;
+  param.m_startDay = param.m_day;
+  param.m_endDay = param.m_day;
+  param.m_isSingleDay = true;
+  param.m_isInstantaneous;
+  param.m_elev = 0;
+  return param;
+}
 
 class ParamControlBase : public CustomControls::HBox
 {
@@ -107,39 +77,32 @@ public:
   virtual void onValueChanged(CustomControls::Control* control, bool value) {}
 };
 
-bool GetSingleDayMode() 
+bool getSingleDayMode() 
 {
   auto iter = m_controls.find("SingleDayMode");
   return ((ParamControlBase*)iter->second)->m_check->getValue();
 }
 
-float GetStartDay()
+float getStartDay()
 {
   auto iter = m_controls.find("StartDay");
   return ((ParamControlBase*)iter->second)->m_slider->getValue();
 }
 
-float GetEndDay()
+float getEndDay()
 {
   auto iter = m_controls.find("EndDay");
   return ((ParamControlBase*)iter->second)->m_slider->getValue();
 }
 
-std::string PadRight(std::string str, const size_t num, const char paddingChar = ' ')
-{
-  if (num > str.size())
-    str.insert(str.size(), num - str.size(), paddingChar);
-  return str;
-}
-
-void ResultsUpdated(float svf, SolarRadiation rad)
+void onResultsUpdated(float svf, SolarRadiation rad)
 {
   m_svfLabel->setText("SVF: " + Utils::value2String(svf, 3));
   std::string unit = " [kWh/m2]";
   rad = rad / 1000;
-  m_globalRadLabel->setText("Global radiation: " + Utils::value2String(rad.global, 3) + unit);
-  m_beamRadLabel->setText("Beam radiation: " + Utils::value2String(rad.beam, 3) + unit);
-  m_diffuseRadLabel->setText("Diffuse radiation: " + Utils::value2String(rad.diffuse, 3) + unit);
+  m_globalRadLabel->setText("Global radiation: " + Utils::value2String(rad.m_global, 3) + unit);
+  m_beamRadLabel->setText("Beam radiation: " + Utils::value2String(rad.m_beam, 3) + unit);
+  m_diffuseRadLabel->setText("Diffuse radiation: " + Utils::value2String(rad.m_diffuse, 3) + unit);
   //printf("Global: %f\n", rad.global);
 }
 
@@ -257,7 +220,7 @@ private:
       buf.precision(2);
       buf << std::fixed << value;
       str = buf.str();
-      str = PadRight(str, 7, '0');
+      str = Utils::padRight(str, 7, '0');
     }
     return str;
   }
@@ -265,27 +228,27 @@ private:
   void onValueChanged(CustomControls::Control* control, float value)
   {
     int intValue = (int)value;
-    bool isSingleMode = m_solarParam.isSingleDay;
+    bool isSingleMode = m_solarParam.m_isSingleDay;
     if (m_name == "StartDay")
     {
-      m_solarParam.startDay = intValue;
-      if (isSingleMode || m_solarParam.endDay < intValue)
+      m_solarParam.m_startDay = intValue;
+      if (isSingleMode || m_solarParam.m_endDay < intValue)
       {
         auto iter = m_controls.find("EndDay");
         ParamControl* endSlider = (ParamControl*)iter->second;
         endSlider->m_slider->setValue(value);
-        m_solarParam.endDay = intValue;
+        m_solarParam.m_endDay = intValue;
       }
     }
     else if (m_name == "EndDay")
     {
-      m_solarParam.endDay = intValue;
-      if (isSingleMode || m_solarParam.startDay > intValue)
+      m_solarParam.m_endDay = intValue;
+      if (isSingleMode || m_solarParam.m_startDay > intValue)
       {
         auto iter = m_controls.find("StartDay");
         ParamControl* endSlider = (ParamControl*)iter->second;
         endSlider->m_slider->setValue(value);
-        m_solarParam.startDay = intValue;
+        m_solarParam.m_startDay = intValue;
       }
     }
     else if (m_name == "Latitude")
@@ -293,18 +256,18 @@ private:
       auto iter = m_controls.find("Latitude");
       ParamControl* slider = (ParamControl*)iter->second;
       slider->m_slider->setValue(value);
-      m_solarParam.lat = value;
+      m_solarParam.m_lat = value;
     }
     else if (m_name == "Elevation")
     {
       auto iter = m_controls.find("Elevation");
       ParamControl* slider = (ParamControl*)iter->second;
       slider->m_slider->setValue(value);
-      m_solarParam.elev = value;
+      m_solarParam.m_elev = value;
     }
     else if (m_name == "TimeStep")
     {
-      m_solarParam.time_step = value;
+      m_solarParam.m_time_step = value;
     }
 
     if (m_isInteger)
@@ -314,7 +277,7 @@ private:
 
   void onValueChanged(CustomControls::Control* control, bool value)
   {
-    m_solarParam.isSingleDay = value;
+    m_solarParam.m_isSingleDay = value;
     if (m_name == "SingleDayMode")
     {
       auto iter = m_controls.find("StartDay");
@@ -325,15 +288,15 @@ private:
       {
         endSlider->m_slider->setValue(starSlider->m_slider->getValue());
       }
-      m_solarParam.isSingleDay = value;
+      m_solarParam.m_isSingleDay = value;
     }
     else if (m_name == "Latitude")
     {
-      m_solarParam.useLatitudeOverride = value;
+      m_solarParam.m_useLatitudeOverride = value;
     }
     else if (m_name == "Elevation")
     {
-      m_solarParam.useElevationOverride = value;
+      m_solarParam.m_useElevationOverride = value;
     }
     else if (m_name == "ToggleParameters")
     {
@@ -350,7 +313,42 @@ private:
   }
 };
 
-void createControls(CustomControls::ControlCanvas* cs)
+class PopupControl : public CustomControls::HBox
+{
+public:
+  PopupControl() :CustomControls::HBox()
+  {
+    m_point.m_id = -1;
+    setChildSpacing(0);
+    setChildVertAlign(CustomControls::Control::ALIGN_CENTER);
+    setHorizFill(true);
+    m_nameLabel = new CustomControls::LabelControl("");
+    m_nameLabel->setHorizAlign(CustomControls::Control::ALIGN_LEFT);
+    m_nameLabel->setVertAlign(CustomControls::Control::ALIGN_CENTER);
+    m_nameLabel->setTextBackdropOffset(3);
+    m_nameLabel->setFontSize(UI_FONT_SIZE);
+    addControl(m_nameLabel);
+
+    m_fisheyeImagel = new CustomControls::ImageControl(m_skyViewHandler->fisheyeSurface()->Texture());
+    m_fisheyeImagel->setSize(256, 256);
+    osg::Vec4 borderColor(0.0, 0.0, 0.0, 1.0);
+    m_fisheyeImagel->setBorderColor(borderColor);
+    addControl(m_fisheyeImagel);
+  }
+  void SetPoint(SolarRadiationPoint& point)
+  {
+    m_point = point;
+    m_nameLabel->setText(m_point.toString());
+    osg::Image* fisheye = m_skyViewHandler->getFisheyeForPoint(m_point.m_id);
+    if (fisheye)
+      m_fisheyeImagel->setImage(fisheye);
+  }
+  SolarRadiationPoint m_point;
+  CustomControls::LabelControl* m_nameLabel;
+  CustomControls::ImageControl* m_fisheyeImagel;
+};
+
+void createMainUIControls(CustomControls::ControlCanvas* cs)
 {
   CustomControls::VBox* ul = new CustomControls::VBox();
   ul->setPosition(0, 0);
@@ -375,13 +373,13 @@ void createControls(CustomControls::ControlCanvas* cs)
   m_parametersControl->setBorderColor(borderColor);
   CustomControls::LabelControl* titleLabel = new CustomControls::LabelControl("GRASS GIS r.sun parameters", fontColor);
   titleLabel->setFontSize(UI_FONT_SIZE);
-  CustomControls::HBox* linkieSlider = new ParamControl("Linkie", PadRight("Linkie", maxLabelLen), 3, 8, m_solarParam.linke, true);
-  CustomControls::HBox* startDaySlider = new ParamControl("StartDay", PadRight("Start Day", maxLabelLen), 1, 365, m_solarParam.startDay, true);
-  CustomControls::HBox* endDaySlider = new ParamControl("EndDay", PadRight("End Day", maxLabelLen), 1, 365, m_solarParam.endDay, true);
-  CustomControls::HBox* isSingleDayCheck = new ParamControl("SingleDayMode", PadRight("Single Day Mode", maxLabelLen), m_solarParam.isSingleDay);
-  CustomControls::HBox* timeStepSlider = new ParamControl("TimeStep", PadRight("Time Step (hours)", maxLabelLen), 0.1, 1, m_solarParam.time_step, false);
-  CustomControls::HBox* latSlider = new ParamControl("Latitude", PadRight("Default Latitude", maxLabelLen), -90, 90, m_solarParam.lat, false, true);
-  CustomControls::HBox* elevSlider = new ParamControl("Elevation", PadRight("Base Elevation", maxLabelLen), 0, 9999, m_solarParam.elev, false, true);
+  CustomControls::HBox* linkieSlider = new ParamControl("Linkie", Utils::padRight("Linkie", maxLabelLen), 3, 8, m_solarParam.m_linke, true);
+  CustomControls::HBox* startDaySlider = new ParamControl("StartDay", Utils::padRight("Start Day", maxLabelLen), 1, 365, m_solarParam.m_startDay, true);
+  CustomControls::HBox* endDaySlider = new ParamControl("EndDay", Utils::padRight("End Day", maxLabelLen), 1, 365, m_solarParam.m_endDay, true);
+  CustomControls::HBox* isSingleDayCheck = new ParamControl("SingleDayMode", Utils::padRight("Single Day Mode", maxLabelLen), m_solarParam.m_isSingleDay);
+  CustomControls::HBox* timeStepSlider = new ParamControl("TimeStep", Utils::padRight("Time Step (hours)", maxLabelLen), 0.1, 1, m_solarParam.m_time_step, false);
+  CustomControls::HBox* latSlider = new ParamControl("Latitude", Utils::padRight("Default Latitude", maxLabelLen), -90, 90, m_solarParam.m_lat, false, true);
+  CustomControls::HBox* elevSlider = new ParamControl("Elevation", Utils::padRight("Base Elevation", maxLabelLen), 0, 9999, m_solarParam.m_elev, false, true);
   m_parametersControl->addControl(titleLabel);
   m_parametersControl->addControl(isSingleDayCheck);
   m_parametersControl->addControl(startDaySlider);
@@ -420,41 +418,97 @@ void createControls(CustomControls::ControlCanvas* cs)
   cs->addControl(ul);
 }
 
-bool _firePostDrawCallback = false;
-class MainKeyboardHandler : public osgGA::GUIEventHandler
+void createPopup(CustomControls::ControlCanvas* cs)
 {
+  PopupControl* popup = new PopupControl();
+  popup->setPosition(200, 200);
+  popup->setPadding(5);
+  int maxLabelLen = 20;
+  osg::Vec4 backgroundColor(0.0, 0.0, 0.0, 0.6);
+  osg::Vec4 borderColor(1.0, 1.0, 1.0, 1.0);
+  osg::Vec4 fontColor(1, 1, 1, 1);
+  popup->setBorderColor(borderColor);
+  popup->setBackColor(backgroundColor);
+  popup->setBorderWidth(5);
+  popup->m_nameLabel->setFontSize(UI_FONT_SIZE);
+  popup->m_nameLabel->setForeColor(fontColor);
+  popup->setNodeMask(false);
+  m_popupControl = popup;
+  cs->addControl(popup);
+}
+
+class MainUIEventHandler : public osgGA::GUIEventHandler
+{
+private:
+  std::map<int, bool> m_keydownMap;
+  bool isKeyDown(int key)
+  {
+    std::map<int, bool>::iterator iter = m_keydownMap.find(key);
+    if (iter != m_keydownMap.end() && iter->second)
+    {
+      return true;
+    }
+    return false;
+  }
 public:
   bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa)
   {
+    int key = ea.getUnmodifiedKey();
+    bool isControlDown = false;
+    if (ea.getEventType() == osgGA::GUIEventAdapter::KEYDOWN)
+    {
+      m_keydownMap[key] = true;
+      isControlDown = true;
+    }
+    else if (ea.getEventType() == osgGA::GUIEventAdapter::KEYUP)
+    {
+      m_keydownMap[key] = false;
+      isControlDown = false;
+    }
+    else
+    {
+      isControlDown = false;
+      if (isKeyDown(osgGA::GUIEventAdapter::KEY_Control_L) || isKeyDown(osgGA::GUIEventAdapter::KEY_Control_R))
+      {
+        isControlDown = true;
+      }
+    }
+
+    PopupControl* popup = (PopupControl*)m_popupControl;
     osgViewer::Viewer* viewer = dynamic_cast<osgViewer::Viewer*>(&aa);
     if (!viewer)
       return false;
-    if (ea.getEventType() == osgGA::GUIEventAdapter::KEYUP)
-      return false;
-    if (ea.getEventType() == osgGA::GUIEventAdapter::MOVE)
-      return false;
-    if (ea.getEventType() == osgGA::GUIEventAdapter::DOUBLECLICK)
-      return false;
-    if (ea.getEventType() == osgGA::GUIEventAdapter::DRAG)
-      return false;
-    if (ea.getEventType() == osgGA::GUIEventAdapter::FRAME)
-      return false;
-    if (osgGA::GUIEventAdapter::KEYDOWN && ea.getUnmodifiedKey() == osgGA::GUIEventAdapter::KEY_M)
+
+    if (!isControlDown)
     {
-      _firePostDrawCallback = true;
+      popup->setNodeMask(false);
+      return false;
     }
 
-    if ((ea.getModKeyMask() & ea.MODKEY_LEFT_SHIFT) && !(ea.getModKeyMask() & ea.MODKEY_CTRL))
+    if (ea.getEventType() == osgGA::GUIEventAdapter::KEYDOWN || ea.getEventType() == osgGA::GUIEventAdapter::MOVE)
     {
-      if (ea.getButtonMask() == osgGA::GUIEventAdapter::LEFT_MOUSE_BUTTON && ea.getEventType() == osgGA::GUIEventAdapter::PUSH)
+      SolarRadiationPoint point;
+      if (m_skyViewHandler->queryPoint(ea.getXnormalized(), ea.getYnormalized(), point))
       {
-        osg::ref_ptr<osgUtil::LineSegmentIntersector> ray = new osgUtil::LineSegmentIntersector(osgUtil::Intersector::PROJECTION, ea.getXnormalized(), ea.getYnormalized());
-        osgUtil::IntersectionVisitor visitor(ray);
-        viewer->getCamera()->accept(visitor);
-        computeMouseIntersection(ray.get());
-        return true;
+        float viewWidth = viewer->getCamera()->getViewport()->width();
+        float viewHeight = viewer->getCamera()->getViewport()->height();
+        int x = (int)((ea.getXnormalized() * 0.5 + 0.5) * viewWidth) + 10;
+        int y = (int)((1.0 - (ea.getYnormalized() * 0.5 + 0.5)) * viewHeight) + 10;
+        popup->setPosition(x, y);
+        if (popup->m_point.m_id != point.m_id)
+        {
+          popup->SetPoint(point);
+        }
+
+        popup->setNodeMask(true);
       }
+      else
+      {
+        popup->setNodeMask(false);
+      }
+      return false;
     }
+
     return false;
   }
 };
@@ -462,12 +516,10 @@ public:
 int main(int argc, char** argv)
 {
   m_solarParam = createSolarParam();
-  GDALAllRegister();
 
   osg::ArgumentParser arguments(&argc, argv);
 
-  // help?
-  if (arguments.read("--help"))
+  if (argc < 2)
     return 0;
 
   // create a viewer:
@@ -479,14 +531,20 @@ int main(int argc, char** argv)
   // thread-safe initialization of the OSG wrapper manager. Calling this here
   // prevents the "unsupported wrapper" messages from OSG
   osgDB::Registry::instance()->getObjectWrapperManager()->findWrapper("osg::Image");
-
-  // load an earth file, and support all or our example command-line options
-  // and earth file <external> tags    
+ 
   osg::ref_ptr<osg::Node> scene = MapNodeHelper().load(arguments, &viewer);
   if (!scene)
   {
     scene = osgDB::readNodeFiles(arguments);
   }
+
+  if (!scene)
+  {
+    scene = ModelLoader::Load3DTiles(arguments[1]);
+  }
+
+  if (!scene)
+    return 0;
 
   osg::ref_ptr<osg::Group> root = new osg::Group;
   root->addChild(scene.get());
@@ -494,15 +552,14 @@ int main(int argc, char** argv)
   viewer.setSceneData(root.get());
 
   MapNode* mapNode = MapNode::findMapNode(scene);
-  // install our default manipulator (do this before calling load)
+
   osg::ref_ptr<osgGA::CameraManipulator> manip;
   if (mapNode)
-  {
+  { 
+    // install our default manipulator (do this before calling load)
     manip = new EarthManipulator(arguments);
-
     // disable the small-feature culling
     viewer.getCamera()->setSmallFeatureCullingPixelSize(-1.0f);
-
     // set a near/far ratio that is smaller than the default. This allows us to get
     // closer to the ground without near clipping. If you need more, use --logdepth
     viewer.getCamera()->setNearFarRatio(0.0001);
@@ -510,22 +567,30 @@ int main(int argc, char** argv)
   else
   {
     manip = new osgGA::TrackballManipulator();
+    if (!Utils::nodeHasNormals(scene))
+    {
+      viewer.getCamera()->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
+    }
   }
 
   viewer.setCameraManipulator(manip.get());
 
-  m_skyViewHandler = new SolarInteractiveHandler(scene, root, mapNode, manip, &viewer, &m_solarParam, ResultsUpdated);
+  m_skyViewHandler = new SolarInteractiveHandler(scene, root, mapNode, manip, &viewer, &m_solarParam, onResultsUpdated);
  
   // create a surface to house the controls
-  CustomControls::ControlCanvas* cs = CustomControls::ControlCanvas::getOrCreate(&viewer);
-
+  CustomControls::ControlCanvas* uiCanvas = CustomControls::ControlCanvas::getOrCreate(&viewer);
   // create some controls.
-  createControls(cs);
+  createMainUIControls(uiCanvas);
+
+  // create a surface to house the controls
+  CustomControls::ControlCanvas* popupCanvas = CustomControls::ControlCanvas::getOrCreate(&viewer);
+  // create some controls.
+  createPopup(popupCanvas);
 
   // zoom to a good startup position
 
   viewer.addEventHandler(m_skyViewHandler);
-  viewer.addEventHandler(new MainKeyboardHandler);
+  viewer.addEventHandler(new MainUIEventHandler);
   viewer.addEventHandler(new osgViewer::ThreadingHandler);
 
   // add the window size toggle handler
@@ -546,7 +611,7 @@ int main(int argc, char** argv)
   main_screen_id.readDISPLAY();
   main_screen_id.setUndefinedScreenDetailsToDefaultScreen();
   wsi->getScreenResolution(main_screen_id, width, height);
- 
+  //viewer.setUpViewInWindow(50, 50, 1024, 768);
   viewer.realize();
   size_t frameCount = 1;
   while (!viewer.done())

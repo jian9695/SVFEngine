@@ -13,10 +13,69 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="SolarEngine">
+      <UniqueIdentifier>{7e94fff8-f364-4c89-9261-1196015e46ad}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\SolarEngine\Cubemap.cpp">
+      <Filter>SolarEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SolarEngine\CustomControls.cpp">
+      <Filter>SolarEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SolarEngine\GrassSolar.cpp">
+      <Filter>SolarEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SolarEngine\ModelLoader.cpp">
+      <Filter>SolarEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SolarEngine\PointsRenderer.cpp">
+      <Filter>SolarEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SolarEngine\RenderSurface.cpp">
+      <Filter>SolarEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SolarEngine\SolarInteractiveHandler.cpp">
+      <Filter>SolarEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SolarEngine\TypeDef.cpp">
+      <Filter>SolarEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SolarEngine\Utils.cpp">
+      <Filter>SolarEngine</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\SolarEngine\CustomControls.h">
+      <Filter>SolarEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SolarEngine\GrassSolar.h">
+      <Filter>SolarEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SolarEngine\ModelLoader.h">
+      <Filter>SolarEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SolarEngine\PointsRenderer.h">
+      <Filter>SolarEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SolarEngine\RenderSurface.h">
+      <Filter>SolarEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SolarEngine\SolarInteractiveHandler.h">
+      <Filter>SolarEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SolarEngine\TypeDef.h">
+      <Filter>SolarEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SolarEngine\Utils.h">
+      <Filter>SolarEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SolarEngine\Cubemap.h">
+      <Filter>SolarEngine</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
