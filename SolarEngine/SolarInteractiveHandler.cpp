@@ -20,8 +20,7 @@ SolarInteractiveHandler::SolarInteractiveHandler(
 	_sceneNode = sceneNode;
 	_mapNode = mapNode;
 
-	//create a node to render a cubemap from a 3D position picked by mouse double-click
-	if (_mapNode)
+  if (_mapNode)
 		_cubemap = Cubemap::create(512, mapNode);
 	else
 		_cubemap = Cubemap::create(512, sceneNode);
@@ -34,15 +33,18 @@ SolarInteractiveHandler::SolarInteractiveHandler(
 	}
 
 	//create a node to transform a cubemap into a fisheye view and then render onto an off-screen image for svf calculation
-	//_cubemap2fisheyeCamera = CameraBuffer::createSlave(512, 512, contexts[0]);
 	_cubemap2fisheyeCamera = _cubemap->toHemisphericalSurface();
-
+	_cubemap2fisheyeCamera->setRenderOrder(osg::Camera::PRE_RENDER, _cubemap->getNumChildren());
 	root->addChild(_cubemap2fisheyeCamera);
 
-	_cubemap2fisheyeCamera->setRenderOrder(osg::Camera::PRE_RENDER, _cubemap->getNumChildren());
-
-	//create point label for highlighting intersection point
+	//create point labels
 	_pointRenderer = new PointsRenderer;
+
+	osg::ref_ptr<osg::Image> depthImage = new osg::Image;
+	depthImage->allocateImage(512, 512, 1, GL_DEPTH_COMPONENT, GL_FLOAT);
+	_viewer->getCamera()->attach(osg::Camera::DEPTH_BUFFER, depthImage.get());
+	_pointRenderer->setSceneDepthImage(depthImage.get());
+	_pointRenderer->setSceneCamera(_viewer->getCamera());
 	_root->addChild(_pointRenderer);
 }
 
@@ -216,7 +218,7 @@ SolarRadiation SolarInteractiveHandler::calSolar(SolarParam& solarParam)
 			if (n < sunVecs.size() - 1)
 				shadowInfo += ",";
 		}
-		printf("%s\n", shadowInfo.data());
+		//printf("%s\n", shadowInfo.data());
 		solarParam.day = day;
 		SolarRadiation dailyRad = rsun.calculateSolarRadiation(solarParam);
 		dailyRads.push_back(dailyRad);
@@ -240,3 +242,8 @@ std::tuple<bool, osg::Vec3d, osg::Matrixd> SolarInteractiveHandler::getGeoTransf
 }
 
 bool SolarInteractiveHandler::isEarth() { return _mapNode; }
+
+void SolarInteractiveHandler::postDrawUpdate()
+{
+	_pointRenderer->postDrawUpdate();
+}

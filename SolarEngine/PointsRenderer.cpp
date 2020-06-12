@@ -12,32 +12,127 @@
 #include <osgText/Font>
 #include <osgText/Text>
 #include <osg/PolygonOffset>
+#include <osgDB/WriteFile>
 #include <fstream>
+#include "RenderSurface.h"
+
+osg::Vec3 WorldPosFromDepth(float depth, osg::Matrixd& projMatrixInv, osg::Matrixd& viewMatrixInv, float u, float v)
+{
+	float z = depth * 2.0 - 1.0;
+
+	osg::Vec4 clipSpacePosition(u * 2.0 - 1.0, v * 2.0 - 1.0, z, 1.0);
+	osg::Vec4 viewSpacePosition = clipSpacePosition * projMatrixInv;
+
+	// Perspective division
+	viewSpacePosition /= viewSpacePosition.w();
+	osg::Vec4 worldSpacePosition = viewSpacePosition * viewMatrixInv;
+
+	return osg::Vec3(worldSpacePosition.x(), worldSpacePosition.y(), worldSpacePosition.z());
+}
+
+void WriteDepthImage(osg::Image* depthImage, const std::string& outname)
+{
+	float* pDepth = (float*)depthImage->data();
+	osg::ref_ptr<osg::Image> depthMap = new osg::Image;
+	depthMap->allocateImage(depthImage->s(), depthImage->t(), 1, GL_RGB, GL_UNSIGNED_BYTE);
+	ColorUB3* data = (ColorUB3*)depthMap->data();
+	int idx = 0;
+	for (int row = 0; row < depthImage->t(); row++)
+	{
+		for (int col = 0; col < depthImage->s(); col++)
+		{
+			float d = pDepth[idx];
+			*data++ = ColorUB3(osg::Vec4(d, d, d, d));
+			idx++;
+		}
+	}
+	osgDB::writeImageFile(*depthMap, outname);
+}
 
 class DrawableDrawCallback : public osg::Drawable::DrawCallback
 {
+public:
+	osg::Image* m_sceneDepthImage;
+	//osg::Camera* m_sceneCamera;
 	virtual void drawImplementation(osg::RenderInfo& renderInfo, const osg::Drawable* drawable) const
 	{
+		//WriteDepthImage(m_sceneDepthImage, "depth2.jpg");
 		const TextLOD* lod = dynamic_cast<const TextLOD*>(drawable->getParent(0));
 		osg::Vec3d pos = lod->_point.pos;
 		osg::Vec3d eye, center, up;
 		renderInfo.getCurrentCamera()->getViewMatrixAsLookAt(eye, center, up);
 		double dist = (eye - pos).length();
 		osg::Drawable* text = const_cast <osg::Drawable*>(drawable);
-		if (dist < 50)
+		osg::Vec4d vertex = osg::Vec4d(pos, 1.0) * renderInfo.getCurrentCamera()->getViewMatrix() * renderInfo.getCurrentCamera()->getProjectionMatrix();
+		osg::Vec3d screenCoords = osg::Vec3d(vertex.x() / vertex.w(), vertex.y() / vertex.w(), vertex.z() / vertex.w());
+		//double fov, aspect, znear, zfar;
+		//renderInfo.getCurrentCamera()->getProjectionMatrixAsPerspective(fov, aspect, znear, zfar);
+		screenCoords.z() = (screenCoords.z() + 1.0) * 0.5;
+		osg::Vec2d uv = osg::Vec2d(screenCoords.x() * 0.5 + 0.5, screenCoords.y() * 0.5 + 0.5);
+		double xresol = 1.0 / m_sceneDepthImage->s();
+		double yresol = 1.0 / m_sceneDepthImage->t();
+		text->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
+		int imgx = (int)(uv.x() * m_sceneDepthImage->s());
+		int imgy = (int)(uv.y() * m_sceneDepthImage->t());
+		bool isVisible = false;
+		osg::Matrixd projInverse = osg::Matrixd::inverse(renderInfo.getCurrentCamera()->getProjectionMatrix());
+		osg::Matrixd viewInverse = osg::Matrixd::inverse(renderInfo.getCurrentCamera()->getViewMatrix());
+		osg::Vec3d p1 = WorldPosFromDepth(screenCoords.z(), projInverse, viewInverse, uv.x(), uv.y());
+		double distTocamera1 = (p1 - eye).length();
+		int windowSize = 5;
+		osg::ref_ptr<osg::Image> depthImage = new osg::Image;
+		depthImage->allocateImage(m_sceneDepthImage->s(), m_sceneDepthImage->t(), 1, GL_RGB, GL_UNSIGNED_BYTE);
+		ColorUB3* pColor = (ColorUB3*)depthImage->data();
+		float* pDepth = (float*)m_sceneDepthImage->data();
+		for (int n = 0; n < m_sceneDepthImage->s() * m_sceneDepthImage->t(); n++)
 		{
-			text->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
+			unsigned char grayscale = (unsigned char)(pDepth[n] * 255.0);
+			pColor[n] = ColorUB3(grayscale, grayscale, grayscale);
 		}
-		else
+
+		for (int xoffset = -windowSize; xoffset < windowSize; xoffset++)
 		{
-			text->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::ON);
+			float x = (imgx + xoffset) / (float)m_sceneDepthImage->s();
+			if (x < 0 || x > 1.0)
+				continue;
+			for (int yoffset = -windowSize; yoffset < windowSize; yoffset++)
+			{
+				float y = (imgy + yoffset) / (float)m_sceneDepthImage->t();
+				if (y < 0 || y > 1.0)
+					continue;
+				float sceneDepth = m_sceneDepthImage->getColor(osg::Vec2(x, y)).r();
+				osg::Vec3d p2 = WorldPosFromDepth(screenCoords.z(), projInverse, viewInverse, x, y);
+				double distTocamera2 = (p2 - eye).length();
+				//if (abs(screenCoords.z() - sceneDepth) < 0.001)
+				if (distTocamera1 < distTocamera2)
+				{
+					isVisible = true;
+					int index = (imgx + xoffset) + (imgy + yoffset) * m_sceneDepthImage->s();
+					pColor[index] = ColorUB3(255, 0, 0);
+				}
+			}
 		}
+		//osgDB::writeImageFile(*depthImage, "depth1.jpg");
+
+		if (!isVisible)
+			return;
+
+		//if (dist < 50)
+		//{
+		//	text->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
+		//}
+		//else
+		//{
+		//	text->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::ON);
+		//}
 		drawable->drawImplementation(renderInfo);
 	}
 };
 
 void PointsRenderer::pushPointInternal(const SolarRadiationPoint& point)
 {
+	WriteDepthImage(m_sceneDepthImage, "depth.jpg");
+	//printf("depth: %f, %f\n", screenCoords.z(), color.r());
 	static osg::ref_ptr<osg::Program> pointsShader = nullptr;
 	if (!pointsShader)
 	{
@@ -108,7 +203,8 @@ void PointsRenderer::pushPointInternal(const SolarRadiationPoint& point)
 	text->setBackdropColor(osg::Vec4(1, 1, 0, 1));
 	text->setBackdropType(osgText::Text::BackdropType::OUTLINE);
 	static osg::ref_ptr<DrawableDrawCallback> drawCallback = new DrawableDrawCallback;
-	text->setDrawCallback(drawCallback.get());
+	drawCallback->m_sceneDepthImage = m_sceneDepthImage;
+	//text->setDrawCallback(drawCallback.get());
 	//osg::ref_ptr<osg::PolygonOffset> polyoffset = new osg::PolygonOffset;
 	//polyoffset->setFactor(-1.0f);
 	//polyoffset->setUnits(-1.0f);
@@ -251,3 +347,109 @@ void PointsRenderer::exportPoints(const std::string& filename)
 	ofs.close();
 }
 
+void PointsRenderer::postDrawUpdate()
+{
+	int numChildren = getNumChildren();
+	if (numChildren < 1)
+		return;
+
+	for (int i = 0; i < numChildren; i++)
+	{
+		TextLOD* lod = dynamic_cast<TextLOD*>(getChild(i));
+		if (!lod)
+			continue;
+		osgText::Text* text = (osgText::Text*)lod->getChild(2);
+		const SolarRadiationPoint& point = lod->_point;
+		//WriteDepthImage(m_sceneDepthImage, "depth2.jpg");
+		osg::Vec3d pos = lod->_point.pos;
+		osg::Vec3d eye, center, up;
+		m_sceneCamera->getViewMatrixAsLookAt(eye, center, up);
+		double dist = (eye - pos).length();
+		osg::Vec4d vertex = osg::Vec4d(pos, 1.0) * m_sceneCamera->getViewMatrix() * m_sceneCamera->getProjectionMatrix();
+		osg::Vec3d screenCoords = osg::Vec3d(vertex.x() / vertex.w(), vertex.y() / vertex.w(), vertex.z() / vertex.w());
+		//double fov, aspect, znear, zfar;
+		//renderInfo.getCurrentCamera()->getProjectionMatrixAsPerspective(fov, aspect, znear, zfar);
+		screenCoords.z() = (screenCoords.z() + 1.0) * 0.5;
+		osg::Vec2d uv = osg::Vec2d(screenCoords.x() * 0.5 + 0.5, screenCoords.y() * 0.5 + 0.5);
+		double xresol = 1.0 / m_sceneDepthImage->s();
+		double yresol = 1.0 / m_sceneDepthImage->t();
+		text->getOrCreateStateSet()->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
+		int imgx = (int)(uv.x() * m_sceneDepthImage->s());
+		int imgy = (int)(uv.y() * m_sceneDepthImage->t());
+		bool isVisible = false;
+		osg::Matrixd projInverse = osg::Matrixd::inverse(m_sceneCamera->getProjectionMatrix());
+		osg::Matrixd viewInverse = osg::Matrixd::inverse(m_sceneCamera->getViewMatrix());
+		osg::Vec3d p1 = WorldPosFromDepth(screenCoords.z(), projInverse, viewInverse, uv.x(), uv.y());
+		double distTocamera1 = (p1 - eye).length();
+		float sceneDepth = m_sceneDepthImage->getColor(osg::Vec2(uv.x(), uv.y())).r();
+		osg::Vec3d p2 = WorldPosFromDepth(sceneDepth, projInverse, viewInverse, uv.x(), uv.y());
+		//printf("[%f,%f,%f],[%f,%f,%f]\n", pos.x(), pos.y(), pos.z(), p2.x(), p2.y(), p2.z());
+		printf("center:[%f,%f,%f],eye:[%f,%f,%f],dist:[%f]\n", pos.x(), pos.y(), pos.z(), eye.x(), eye.y(), eye.z(), distTocamera1);
+		int windowSize = 5;
+		bool writeImage = false;
+		//WriteDepthImage(m_sceneDepthImage, "depth1.jpg");
+
+		//osg::ref_ptr<osg::Image> depthImage = new osg::Image;
+		//depthImage = new osg::Image;
+		//depthImage->allocateImage(m_sceneDepthImage->s(), m_sceneDepthImage->t(), 1, GL_RGB, GL_UNSIGNED_BYTE);
+		//ColorUB3* pColor = (ColorUB3*)depthImage->data();
+		//float* pDepth = (float*)m_sceneDepthImage->data();
+		//for (int n = 0; n < m_sceneDepthImage->s() * m_sceneDepthImage->t(); n++)
+		//{
+
+		//	unsigned char grayscale = (unsigned char)(pDepth[n] * 255.0);
+		//	pColor[n] = ColorUB3(grayscale, grayscale, grayscale);
+		//}
+		//int idx = 0;
+		//for (int row = 0; row < depthImage->t(); row++)
+		//{
+		//	float y = row / (float)(depthImage->t() - 1);
+		//	//y = 1.0 - y;
+		//	for (int col = 0; col < depthImage->s(); col++)
+		//	{
+		//		float x = col / (float)(depthImage->s() - 1);
+		//		float d = pDepth[idx];
+		//		osg::Vec3d p2 = WorldPosFromDepth(d, projInverse, viewInverse, x, y);
+		//		dist = (eye - p2).length();
+		//		dist / 1000;
+		//		p2.normalize();
+		//		p2 = p2 * 0.5 + osg::Vec3d(0.5, 0.5, 0.5);
+		//		pColor[idx] = ColorUB3(p2);
+		//		idx++;
+		//	}
+		//}
+		printf("Neighbors:\n");
+		for (int xoffset = -windowSize; xoffset < windowSize; xoffset++)
+		{
+			float x = (imgx + xoffset) / (float)m_sceneDepthImage->s();
+			if (x < 0 || x > 1.0)
+				continue;
+			for (int yoffset = -windowSize; yoffset < windowSize; yoffset++)
+			{
+				float y = (imgy + yoffset) / (float)m_sceneDepthImage->t();
+				if (y < 0 || y > 1.0)
+					continue;
+				float sceneDepth = m_sceneDepthImage->getColor(osg::Vec2(x, y)).r();
+				osg::Vec3d p2 = WorldPosFromDepth(sceneDepth, projInverse, viewInverse, x, y);
+				double distTocamera2 = (p2 - eye).length();
+				printf("[%f,%f],[%f,%f,%f],dist:[%f]\n", x, y, p2.x(), p2.y(), p2.z(), distTocamera2);
+				//if (abs(screenCoords.z() - sceneDepth) < 0.001)
+				if (distTocamera1 < distTocamera2)
+				{
+					isVisible = true;
+					//if (pColor)
+					//{
+					//	int index = (imgx + xoffset) + (imgy + yoffset) * m_sceneDepthImage->s();
+					//	pColor[index] = ColorUB3(255, 0, 0);
+					//}
+
+				}
+			}
+		}
+		printf("\n");
+		printf("\n");
+		text->setNodeMask(isVisible);
+		//if (pColor)
+		//	osgDB::writeImageFile(*depthImage, "depth1.jpg");
+	}
+}

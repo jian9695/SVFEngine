@@ -27,16 +27,21 @@ public:
 class PointsRenderer : public osg::Group
 {
 public:
-	PointsRenderer() {};
+	PointsRenderer() { m_sceneDepthImage = nullptr; m_sceneCamera = nullptr; };
 	void pushPoint(const osg::Vec3d& point, const SolarParam& param, const SolarRadiation& rad);
 	void pushPoint(const SolarRadiationPoint& point);
 	void popPoint();
 	void undo();
 	void redo();
 	void exportPoints(const std::string& filename);
+	void setSceneDepthImage(osg::Image* depthImg) { m_sceneDepthImage = depthImg; };
+	void setSceneCamera(osg::Camera* sceneCamera) { m_sceneCamera = sceneCamera; };
+	void postDrawUpdate();
 private:
 	std::vector<Action> m_doStack;
 	std::vector<Action> m_undoStack;
+	osg::Image* m_sceneDepthImage;
+	osg::Camera* m_sceneCamera;
 private:
 	void performAction(const Action& action);
 	void pushPointInternal(const SolarRadiationPoint& point);

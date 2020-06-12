@@ -140,7 +140,7 @@ void ResultsUpdated(float svf, SolarRadiation rad)
   m_globalRadLabel->setText("Global radiation: " + Utils::value2String(rad.global, 3) + unit);
   m_beamRadLabel->setText("Beam radiation: " + Utils::value2String(rad.beam, 3) + unit);
   m_diffuseRadLabel->setText("Diffuse radiation: " + Utils::value2String(rad.diffuse, 3) + unit);
-  printf("Global: %f\n", rad.global);
+  //printf("Global: %f\n", rad.global);
 }
 
 class ParamControlEventHandler : public CustomControls::ControlEventHandler
@@ -409,7 +409,7 @@ void createControls(CustomControls::ControlCanvas* cs)
   m_fisheyeControl = new CustomControls::VBox();
   //m_fisheyeControl->setBackColor(backgroundColor);
   m_fisheyeControl->setBorderColor(borderColor);
-  CustomControls::ImageControl* fishEyeImg = new CustomControls::ImageControl(m_skyViewHandler->FisheyeSurface()->Texture());
+  CustomControls::ImageControl* fishEyeImg = new CustomControls::ImageControl(m_skyViewHandler->fisheyeSurface()->Texture());
   fishEyeImg->setSize(320, 320);
   m_fisheyeControl->addControl(fishEyeImg);
   ul->addControl(togglesControl);
@@ -419,6 +419,30 @@ void createControls(CustomControls::ControlCanvas* cs)
 
   cs->addControl(ul);
 }
+
+bool _firePostDrawCallback = false;
+class MainKeyboardHandler : public osgGA::GUIEventHandler
+{
+public:
+  bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa)
+  {
+    if (ea.getEventType() == osgGA::GUIEventAdapter::KEYUP)
+      return false;
+    if (ea.getEventType() == osgGA::GUIEventAdapter::MOVE)
+      return false;
+    if (ea.getEventType() == osgGA::GUIEventAdapter::DOUBLECLICK)
+      return false;
+    if (ea.getEventType() == osgGA::GUIEventAdapter::DRAG)
+      return false;
+    if (ea.getEventType() == osgGA::GUIEventAdapter::FRAME)
+      return false;
+    if (osgGA::GUIEventAdapter::KEYDOWN && ea.getUnmodifiedKey() == osgGA::GUIEventAdapter::KEY_M)
+    {
+      _firePostDrawCallback = true;
+    }
+    return false;
+  }
+};
 
 int main(int argc, char** argv)
 {
@@ -486,7 +510,7 @@ int main(int argc, char** argv)
   // zoom to a good startup position
 
   viewer.addEventHandler(m_skyViewHandler);
-
+  viewer.addEventHandler(new MainKeyboardHandler);
   viewer.addEventHandler(new osgViewer::ThreadingHandler);
 
   // add the window size toggle handler
@@ -507,13 +531,27 @@ int main(int argc, char** argv)
   main_screen_id.readDISPLAY();
   main_screen_id.setUndefinedScreenDetailsToDefaultScreen();
   wsi->getScreenResolution(main_screen_id, width, height);
-
-  printf("%d,%d\n", width, height);
+  //printf("%d,%d\n", width, height);
   //viewer.getCamera()->setViewport(50, 50, 1600, 1024);
-  if (mapNode)
+  //if (mapNode)
+  //{
+  //  Metrics::run(viewer);
+  //  return 0;
+  //}
+  viewer.realize();
+  size_t frameCount = 1;
+  while (!viewer.done())
   {
-    Metrics::run(viewer);
-    return 0;
+    viewer.frame();
+    //if (_firePostDrawCallback)
+    if (frameCount % 10 == 0)
+    {
+      m_skyViewHandler->postDrawUpdate();
+      _firePostDrawCallback = false;
+    }
+    frameCount++;
+    if (frameCount > 1000000)
+      frameCount = 1;
   }
-  return viewer.run();
+  return 0;
 }

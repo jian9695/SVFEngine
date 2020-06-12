@@ -37,6 +37,12 @@ struct ColorUB3
 		_g = (unsigned char)(color.g() * 255);
 		_b = (unsigned char)(color.b() * 255);
 	}
+	ColorUB3(osg::Vec3 color)
+	{
+		_r = (unsigned char)(color.x() * 255);
+		_g = (unsigned char)(color.y() * 255);
+		_b = (unsigned char)(color.z() * 255);
+	}
 };
 
 class ProgramBinder

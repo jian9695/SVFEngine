@@ -3,11 +3,11 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>./data/models/OAP3D/OAP3D.osgb</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>./tests/boston_buildings.earth</LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseD|x64'">
     <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>./tests/boston_buildings.earth</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>./data/models/OAP3D/OAP3D.osgb</LocalDebuggerCommandArguments>
   </PropertyGroup>
 </Project>

@@ -31,7 +31,8 @@ public:
 		OnResultsUpdated resultsCallback);
 	~SolarInteractiveHandler();
 	bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa);
-	RenderSurface* FisheyeSurface() { return _cubemap2fisheyeCamera; }
+	RenderSurface* fisheyeSurface() { return _cubemap2fisheyeCamera; }
+	void postDrawUpdate();
 private:
 	//compute the mouse-model intersection point; compute SVF at this point; update the fisheye HUD and _text labels
 	void computeMouseIntersection(osgUtil::LineSegmentIntersector* ray);
