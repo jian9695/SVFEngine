@@ -147,7 +147,7 @@ bool SolarInteractiveHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GU
 	osgViewer::Viewer* viewer = dynamic_cast<osgViewer::Viewer*>(&aa);
 	if (!viewer)
 		return false;
-	if (ea.getModKeyMask() & ea.MODKEY_CTRL)
+	if ((ea.getModKeyMask() & ea.MODKEY_CTRL) && !(ea.getModKeyMask() & ea.MODKEY_LEFT_SHIFT))
 	{
 		if (ea.getButtonMask() == osgGA::GUIEventAdapter::LEFT_MOUSE_BUTTON && ea.getEventType() == osgGA::GUIEventAdapter::PUSH)
 		{
@@ -155,6 +155,7 @@ bool SolarInteractiveHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GU
 			osgUtil::IntersectionVisitor visitor(ray);
 			viewer->getCamera()->accept(visitor);
 			computeMouseIntersection(ray.get());
+			return true;
 		}
 		else if (osgGA::GUIEventAdapter::KEYDOWN)
 		{
@@ -162,14 +163,17 @@ bool SolarInteractiveHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GU
 			if (key == osgGA::GUIEventAdapter::KEY_Delete || key == osgGA::GUIEventAdapter::KEY_KP_Delete || key == osgGA::GUIEventAdapter::KEY_BackSpace || key == 65454)
 			{
 				_pointRenderer->popPoint();
+				return true;
 			}
 			else if (key == osgGA::GUIEventAdapter::KEY_Z)
 			{
 				_pointRenderer->undo();
+				return true;
 			}
 			else if (key == osgGA::GUIEventAdapter::KEY_Y)
 			{
 				_pointRenderer->redo();
+				return true;
 			}
 			else if (key == osgGA::GUIEventAdapter::KEY_E)
 			{
@@ -179,6 +183,7 @@ bool SolarInteractiveHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GU
 				filenameSS << 1900 + now->tm_year << "-" << now->tm_mon + 1 << "-" << now->tm_mday
 					<< "-" << now->tm_hour << "-" << now->tm_min << "-" << now->tm_sec << ".csv";
 				_pointRenderer->exportPoints(filenameSS.str());
+				return true;
 			}
 			//printf("%d,%d,%d\n", key, osgGA::GUIEventAdapter::KEY_Z, osgGA::GUIEventAdapter::KEY_Y);
 		}
@@ -246,4 +251,24 @@ bool SolarInteractiveHandler::isEarth() { return _mapNode; }
 void SolarInteractiveHandler::postDrawUpdate()
 {
 	_pointRenderer->postDrawUpdate();
+}
+
+std::tuple<bool, SolarRadiationPoint> SolarInteractiveHandler::queryPoint(const float& mouseX, const float& mouseY)
+{
+	SolarRadiationPoint solarPoint;
+	osg::ref_ptr<osgUtil::LineSegmentIntersector> ray = new osgUtil::LineSegmentIntersector(osgUtil::Intersector::PROJECTION, mouseX, mouseY);
+	osgUtil::IntersectionVisitor visitor(ray);
+	_viewer->getCamera()->accept(visitor);
+	if (ray->getIntersections().size() == 0)
+		return std::make_tuple(false, solarPoint);
+	//computeMouseIntersection(ray.get());
+
+	osg::Vec3d curcenter = ray->getFirstIntersection().getWorldIntersectPoint();
+	osg::Vec3d cureye = ray->getFirstIntersection().getWorldIntersectPoint();
+
+	osg::Vec3d worldPos = ray->getFirstIntersection().getWorldIntersectPoint();
+	osg::Vec3d surfaceNormal = ray->getFirstIntersection().getWorldIntersectNormal();
+	surfaceNormal.normalize();
+	worldPos = worldPos + surfaceNormal * 0.1; //offset from the surface
+	return std::make_tuple(true, solarPoint);
 }

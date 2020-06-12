@@ -234,3 +234,18 @@ std::string Utils::value2String(float value, int precision)
 	buf << std::fixed << value;
 	return buf.str();
 }
+
+osg::Vec3 Utils::WorldPosFromDepth(float depth, osg::Matrixd& projMatrixInv, osg::Matrixd& viewMatrixInv, float u, float v)
+{
+	float z = depth * 2.0 - 1.0;
+
+	osg::Vec4 clipSpacePosition(u * 2.0 - 1.0, v * 2.0 - 1.0, z, 1.0);
+	osg::Vec4 viewSpacePosition = clipSpacePosition * projMatrixInv;
+
+	// Perspective division
+	viewSpacePosition /= viewSpacePosition.w();
+	osg::Vec4 worldSpacePosition = viewSpacePosition * viewMatrixInv;
+
+	return osg::Vec3(worldSpacePosition.x(), worldSpacePosition.y(), worldSpacePosition.z());
+}
+

@@ -33,6 +33,7 @@ public:
 	bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa);
 	RenderSurface* fisheyeSurface() { return _cubemap2fisheyeCamera; }
 	void postDrawUpdate();
+	std::tuple<bool, SolarRadiationPoint> queryPoint(const float& mouseX, const float& mouseY);
 private:
 	//compute the mouse-model intersection point; compute SVF at this point; update the fisheye HUD and _text labels
 	void computeMouseIntersection(osgUtil::LineSegmentIntersector* ray);

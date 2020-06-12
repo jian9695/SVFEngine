@@ -426,6 +426,9 @@ class MainKeyboardHandler : public osgGA::GUIEventHandler
 public:
   bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa)
   {
+    osgViewer::Viewer* viewer = dynamic_cast<osgViewer::Viewer*>(&aa);
+    if (!viewer)
+      return false;
     if (ea.getEventType() == osgGA::GUIEventAdapter::KEYUP)
       return false;
     if (ea.getEventType() == osgGA::GUIEventAdapter::MOVE)
@@ -439,6 +442,18 @@ public:
     if (osgGA::GUIEventAdapter::KEYDOWN && ea.getUnmodifiedKey() == osgGA::GUIEventAdapter::KEY_M)
     {
       _firePostDrawCallback = true;
+    }
+
+    if ((ea.getModKeyMask() & ea.MODKEY_LEFT_SHIFT) && !(ea.getModKeyMask() & ea.MODKEY_CTRL))
+    {
+      if (ea.getButtonMask() == osgGA::GUIEventAdapter::LEFT_MOUSE_BUTTON && ea.getEventType() == osgGA::GUIEventAdapter::PUSH)
+      {
+        osg::ref_ptr<osgUtil::LineSegmentIntersector> ray = new osgUtil::LineSegmentIntersector(osgUtil::Intersector::PROJECTION, ea.getXnormalized(), ea.getYnormalized());
+        osgUtil::IntersectionVisitor visitor(ray);
+        viewer->getCamera()->accept(visitor);
+        computeMouseIntersection(ray.get());
+        return true;
+      }
     }
     return false;
   }
@@ -531,23 +546,15 @@ int main(int argc, char** argv)
   main_screen_id.readDISPLAY();
   main_screen_id.setUndefinedScreenDetailsToDefaultScreen();
   wsi->getScreenResolution(main_screen_id, width, height);
-  //printf("%d,%d\n", width, height);
-  //viewer.getCamera()->setViewport(50, 50, 1600, 1024);
-  //if (mapNode)
-  //{
-  //  Metrics::run(viewer);
-  //  return 0;
-  //}
+ 
   viewer.realize();
   size_t frameCount = 1;
   while (!viewer.done())
   {
     viewer.frame();
-    //if (_firePostDrawCallback)
     if (frameCount % 10 == 0)
     {
       m_skyViewHandler->postDrawUpdate();
-      _firePostDrawCallback = false;
     }
     frameCount++;
     if (frameCount > 1000000)
