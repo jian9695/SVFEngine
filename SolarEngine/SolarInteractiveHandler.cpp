@@ -75,6 +75,8 @@ void SolarInteractiveHandler::processIntersection(osgUtil::LineSegmentIntersecto
 	osg::Vec3d cureye = ray->getFirstIntersection().getWorldIntersectPoint() + _dir * 50;
 
 	osg::Vec3d worldPos = ray->getFirstIntersection().getWorldIntersectPoint();
+	if (!m_sceneNode->getBound().contains(worldPos))
+		return;
 	osg::Vec3d surfaceNormal = ray->getFirstIntersection().getWorldIntersectNormal();
 	surfaceNormal.normalize();
 	worldPos = worldPos + surfaceNormal * 0.1; //offset from the surface
@@ -140,14 +142,24 @@ bool SolarInteractiveHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GU
 	if (ea.getEventType() == osgGA::GUIEventAdapter::MOVE)
 		return false;
 	if (ea.getEventType() == osgGA::GUIEventAdapter::DOUBLECLICK)
+	{
+		if (ea.getModKeyMask() & ea.MODKEY_CTRL)
+			return true;
 		return false;
+	}
 	if (ea.getEventType() == osgGA::GUIEventAdapter::DRAG)
+	{
+		if (ea.getModKeyMask() & ea.MODKEY_CTRL)
+			return true;
 		return false;
+	}
+
 	if (ea.getEventType() == osgGA::GUIEventAdapter::FRAME)
 		return false;
 	osgViewer::Viewer* viewer = dynamic_cast<osgViewer::Viewer*>(&aa);
 	if (!viewer)
 		return false;
+
 	if ((ea.getModKeyMask() & ea.MODKEY_CTRL) && !(ea.getModKeyMask() & ea.MODKEY_LEFT_SHIFT))
 	{
 		if (ea.getButtonMask() == osgGA::GUIEventAdapter::LEFT_MOUSE_BUTTON && ea.getEventType() == osgGA::GUIEventAdapter::PUSH)
@@ -156,7 +168,7 @@ bool SolarInteractiveHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GU
 			osgUtil::IntersectionVisitor visitor(ray);
 			viewer->getCamera()->accept(visitor);
 			processIntersection(ray.get());
-			return false;
+			return true;
 		}
 		else if (osgGA::GUIEventAdapter::KEYDOWN)
 		{
