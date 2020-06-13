@@ -28,6 +28,8 @@ using namespace osgEarth::Util;
 
 const int UI_FONT_SIZE = 18;
 SolarParam m_solarParam;
+size_t m_frameCount = 1;
+
 osg::ref_ptr<SolarInteractiveHandler> m_skyViewHandler;
 CustomControls::HBox* m_popupControl;
 std::map<std::string, CustomControls::Control*> m_controls;
@@ -328,13 +330,13 @@ public:
     m_nameLabel->setTextBackdropOffset(3);
     m_nameLabel->setFontSize(UI_FONT_SIZE);
     addControl(m_nameLabel);
-
-    m_fisheyeImagel = new CustomControls::ImageControl(m_skyViewHandler->fisheyeSurface()->Texture());
+    m_fisheyeImagel = new CustomControls::ImageControl;
     m_fisheyeImagel->setSize(256, 256);
     osg::Vec4 borderColor(0.0, 0.0, 0.0, 1.0);
     m_fisheyeImagel->setBorderColor(borderColor);
     addControl(m_fisheyeImagel);
   }
+
   void SetPoint(SolarRadiationPoint& point)
   {
     m_point = point;
@@ -343,6 +345,7 @@ public:
     if (fisheye)
       m_fisheyeImagel->setImage(fisheye);
   }
+
   SolarRadiationPoint m_point;
   CustomControls::LabelControl* m_nameLabel;
   CustomControls::ImageControl* m_fisheyeImagel;
@@ -405,7 +408,7 @@ void createMainUIControls(CustomControls::ControlCanvas* cs)
   m_resultLabelsControl->addControl(m_diffuseRadLabel);
 
   m_fisheyeControl = new CustomControls::VBox();
-  //m_fisheyeControl->setBackColor(backgroundColor);
+  m_fisheyeControl->setBackColor(backgroundColor);
   m_fisheyeControl->setBorderColor(borderColor);
   CustomControls::ImageControl* fishEyeImg = new CustomControls::ImageControl(m_skyViewHandler->fisheyeSurface()->Texture());
   fishEyeImg->setSize(320, 320);
@@ -440,52 +443,28 @@ void createPopup(CustomControls::ControlCanvas* cs)
 class MainUIEventHandler : public osgGA::GUIEventHandler
 {
 private:
-  std::map<int, bool> m_keydownMap;
-  bool isKeyDown(int key)
-  {
-    std::map<int, bool>::iterator iter = m_keydownMap.find(key);
-    if (iter != m_keydownMap.end() && iter->second)
-    {
-      return true;
-    }
-    return false;
-  }
+
 public:
   bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa)
   {
-    int key = ea.getUnmodifiedKey();
-    bool isControlDown = false;
+    if (ea.getEventType() == osgGA::GUIEventAdapter::MOVE)
+      return false;
+    if (ea.getEventType() == osgGA::GUIEventAdapter::KEYUP)
+      return false;
     if (ea.getEventType() == osgGA::GUIEventAdapter::KEYDOWN)
-    {
-      m_keydownMap[key] = true;
-      isControlDown = true;
-    }
-    else if (ea.getEventType() == osgGA::GUIEventAdapter::KEYUP)
-    {
-      m_keydownMap[key] = false;
-      isControlDown = false;
-    }
-    else
-    {
-      isControlDown = false;
-      if (isKeyDown(osgGA::GUIEventAdapter::KEY_Control_L) || isKeyDown(osgGA::GUIEventAdapter::KEY_Control_R))
-      {
-        isControlDown = true;
-      }
-    }
+      return false;
+    if (ea.getEventType() == osgGA::GUIEventAdapter::DOUBLECLICK)
+      return false;
+    if (ea.getEventType() == osgGA::GUIEventAdapter::DRAG)
+      return false;
 
+    int key = ea.getUnmodifiedKey();
     PopupControl* popup = (PopupControl*)m_popupControl;
     osgViewer::Viewer* viewer = dynamic_cast<osgViewer::Viewer*>(&aa);
     if (!viewer)
       return false;
 
-    if (!isControlDown)
-    {
-      popup->setNodeMask(false);
-      return false;
-    }
-
-    if (ea.getEventType() == osgGA::GUIEventAdapter::KEYDOWN || ea.getEventType() == osgGA::GUIEventAdapter::MOVE)
+    if (ea.getEventType() == osgGA::GUIEventAdapter::FRAME & m_frameCount % 10 == 0)
     {
       SolarRadiationPoint point;
       if (m_skyViewHandler->queryPoint(ea.getXnormalized(), ea.getYnormalized(), point))
@@ -499,16 +478,13 @@ public:
         {
           popup->SetPoint(point);
         }
-
         popup->setNodeMask(true);
       }
       else
       {
         popup->setNodeMask(false);
       }
-      return false;
     }
-
     return false;
   }
 };
@@ -613,17 +589,16 @@ int main(int argc, char** argv)
   wsi->getScreenResolution(main_screen_id, width, height);
   //viewer.setUpViewInWindow(50, 50, 1024, 768);
   viewer.realize();
-  size_t frameCount = 1;
   while (!viewer.done())
   {
     viewer.frame();
-    if (frameCount % 10 == 0)
+    if (m_frameCount % 10 == 0)
     {
       m_skyViewHandler->postDrawUpdate();
     }
-    frameCount++;
-    if (frameCount > 1000000)
-      frameCount = 1;
+    m_frameCount++;
+    if (m_frameCount > 1000000)
+      m_frameCount = 1;
   }
   return 0;
 }

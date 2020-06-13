@@ -119,7 +119,7 @@ RenderSurface* Cubemap::toHemisphericalSurface()
 		"  vec4 rgba = textureCube( uEnvironmentMap, vec3(dir.x, -dir.z, dir.y));\n"
 		"  if(radius > 1)\n"
 		"  {\n"
-		"     rgba = vec4(0.0,0.0,0.0,0.6);\n"
+		"     rgba = vec4(0.0,0.0,0.0,0.0);\n"
 		"     gl_FragColor = rgba;\n"
 		"     return;\n"
 		"  }\n"

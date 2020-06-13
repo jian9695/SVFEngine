@@ -13,10 +13,10 @@ std::string SolarRadiationPoint::toString()
 {
 	std::stringstream ofs;
 	std::vector<std::pair<std::string, OuputVariable>> outputVariables;
-	outputVariables.push_back(std::pair<std::string, OuputVariable>("Global [kWh/m2]:", OuputVariable(m_global / 1000)));
-	outputVariables.push_back(std::pair<std::string, OuputVariable>("Beam [kWh/m2]:", OuputVariable(m_beam / 1000)));
-	outputVariables.push_back(std::pair<std::string, OuputVariable>("Diffuse [kWh/m2]:", OuputVariable(m_diffuse / 1000)));
-	outputVariables.push_back(std::pair<std::string, OuputVariable>("Reflected [kWh/m2]:", OuputVariable(m_reflected / 1000)));
+	outputVariables.push_back(std::pair<std::string, OuputVariable>("Global:", OuputVariable(m_global / 1000)));
+	outputVariables.push_back(std::pair<std::string, OuputVariable>("Beam:", OuputVariable(m_beam / 1000)));
+	outputVariables.push_back(std::pair<std::string, OuputVariable>("Diff:", OuputVariable(m_diffuse / 1000)));
+	outputVariables.push_back(std::pair<std::string, OuputVariable>("Refl:", OuputVariable(m_reflected / 1000)));
 	outputVariables.push_back(std::pair<std::string, OuputVariable>("SVF:", OuputVariable(m_svf)));
 	outputVariables.push_back(std::pair<std::string, OuputVariable>("Slope:", OuputVariable(m_slope)));
 	outputVariables.push_back(std::pair<std::string, OuputVariable>("Aspect:", OuputVariable(m_aspect)));

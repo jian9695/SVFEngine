@@ -94,11 +94,13 @@ public:
 	{
 		if (m_type == ValType::d)
 		{
-			ss << m_d;
+			ss.precision(3);
+			ss << std::fixed << m_d;
 		}
 		else if (m_type == ValType::f)
 		{
-			ss << m_f;
+			ss.precision(3);
+			ss << std::fixed << m_f;
 		}
 		else if (m_type == ValType::s)
 		{
@@ -106,11 +108,13 @@ public:
 		}
 		else if (m_type == ValType::i)
 		{
+			ss.precision(0);
 			ss << m_i;
 		}
 		else if (m_type == ValType::vec)
 		{
-			ss << "\"" << "[" << m_vec.x() << "," << m_vec.y() << "," << m_vec.z() << "]" << "\"";
+			ss.precision(3);
+			ss << std::fixed << "\"" << "[" << m_vec.x() << "," << m_vec.y() << "," << m_vec.z() << "]" << "\"";
 		}
 	}
 };
