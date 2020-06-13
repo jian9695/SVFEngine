@@ -9,6 +9,7 @@
 #include <osgViewer/Viewer>
 #include <osgDB/ReadFile>
 #include <osgViewer/ViewerEventHandlers>
+#include <osg/Depth>
 
 #include <osgEarth/MapNode>
 #include <osgEarth/ThreadingUtils>
@@ -42,6 +43,54 @@ CustomControls::LabelControl* m_svfLabel;
 CustomControls::LabelControl* m_globalRadLabel;
 CustomControls::LabelControl* m_beamRadLabel;
 CustomControls::LabelControl* m_diffuseRadLabel;
+MapNode* m_mapNode;
+ScreenOverlay* m_northArrow;
+
+ScreenOverlay* createNorthArrow()
+{
+  ScreenOverlay* overlay = new ScreenOverlay;
+  char vertexSource[] =
+    "uniform float rotateAngle;\n"
+    "vec2 rotateXY(vec2 xy, float rotation)\n"
+    "{\n"
+    "   float mid = 0.0;\n"
+    "   float x = cos(rotation) * (xy.x - mid) + sin(rotation) * (xy.y - mid) + mid;\n"
+    "   float y = cos(rotation) * (xy.y - mid) - sin(rotation) * (xy.x - mid) + mid;\n"
+    "   return vec2(x,y);\n"
+    "}\n"
+    "void main(void)\n"
+    "{\n"
+    "   gl_TexCoord[0] = vec4(gl_Vertex.x*0.5+0.5,gl_Vertex.y*0.5+0.5,0,1);\n"
+    "   vec2 pos = rotateXY(gl_Vertex.xy, rotateAngle * 0.0174533) * 0.1 + vec2(0.8);\n"
+    "   gl_Position = vec4(pos.x,pos.y,0,1.0);\n"
+    "}\n";
+
+  char fragmentSource[] =
+    "uniform sampler2D texture0;\n"
+    "void main(void) \n"
+    "{\n"
+    "    vec4 color = texture2D(texture0, gl_TexCoord[0].xy);\n"
+    "    if(color.a < 0.5)\n"
+    "      color = vec4(1,1,0,0.1);\n"
+    "    else\n"
+    "      color = color + vec4(0,0.3,0,0);\n"
+    "    gl_FragColor = color;\n"
+    "}\n";
+  overlay->SetVertexShader(vertexSource);
+  overlay->SetFragmentShader(fragmentSource);
+  overlay->setProgramName("NorthArrowProgram");
+  //overlay->setTextureLayer
+  osg::ref_ptr<osg::Image> img = osgDB::readImageFile("./data/compass.png");
+  osg::ref_ptr<osg::Texture2D> tex = new osg::Texture2D;
+  tex->setImage(img.get());
+  overlay->setTextureLayer(tex.get());
+  overlay->getOrCreateStateSet()->setMode(GL_BLEND, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
+  overlay->getOrCreateStateSet()->setAttributeAndModes(new osg::Depth(osg::Depth::ALWAYS, 0, 1, false));
+  overlay->getOrCreateStateSet()->setRenderBinDetails(0, "TraversalOrderBin");
+  float rotateAngle = 0.0;
+  overlay->getOrCreateStateSet()->addUniform(new osg::Uniform("rotateAngle", rotateAngle));
+  return overlay;
+}
 
 SolarParam createSolarParam()
 {
@@ -496,12 +545,57 @@ void createPopup(CustomControls::ControlCanvas* cs)
 class MainUIEventHandler : public osgGA::GUIEventHandler
 {
 private:
-
+  float calAzimuth(float x, float y)
+  {
+    float x2 = 0.0;
+    float y2 = 1.0;
+    float dot = x * x2 + y * y2;      //# dot product\n"
+    float det = x * y2 - y * x2;      //# determinant\n"
+    float angle = atan2(det, dot) * 57.2958;  //# atan2(y, x) or atan2(sin, cos)\n"
+    if (angle < 0)
+      angle += 360;
+    return angle;
+  }
 public:
   bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa)
   {
-    if (ea.getEventType() == osgGA::GUIEventAdapter::FRAME)
+    osgViewer::Viewer* viewer = dynamic_cast<osgViewer::Viewer*>(&aa);
+    if (!viewer)
       return false;
+
+    if (ea.getEventType() == osgGA::GUIEventAdapter::FRAME)
+    {
+      if (m_frameCount % 2 == 0)
+      {
+        float rotateAngle = 0;
+        if (m_mapNode)
+        {
+          osg::Vec3d eye, center, up;
+          viewer->getCamera()->getViewMatrixAsLookAt(eye, center, up);
+          osg::Vec3d look = (center - eye);
+          look.normalize();
+          osg::Vec3d north(0, 0, 1);
+          double projectedX = look * north;
+          double projectedY = look * osg::Vec3d(1,0,0);
+          osg::Vec2d xy(projectedY, projectedX);
+          xy.normalize();
+          rotateAngle = 360 - calAzimuth(xy.x(), xy.y());
+        }
+        else 
+        {
+          osg::Vec3d eye, center, up;
+          viewer->getCamera()->getViewMatrixAsLookAt(eye, center, up);
+          osg::Vec3d look = (center - eye);
+          look.normalize();
+          osg::Vec2d xy(look.x(), look.y());
+          xy.normalize();
+          rotateAngle = 360 - calAzimuth(xy.x(), xy.y());
+        }
+        m_northArrow->getOrCreateStateSet()->getUniform("rotateAngle")->set(rotateAngle);
+      }
+      return false;
+    }
+
     if (ea.getEventType() == osgGA::GUIEventAdapter::DOUBLECLICK)
       return false;
     if (ea.getEventType() == osgGA::GUIEventAdapter::DRAG)
@@ -516,9 +610,7 @@ public:
     }
 
     PopupControl* popup = (PopupControl*)m_popupControl;
-    osgViewer::Viewer* viewer = dynamic_cast<osgViewer::Viewer*>(&aa);
-    if (!viewer)
-      return false;
+
 
     bool handlePointQuery = false;
     if (
@@ -607,10 +699,10 @@ int main(int argc, char** argv)
 
   viewer.setSceneData(root.get());
 
-  MapNode* mapNode = MapNode::findMapNode(scene);
+  m_mapNode = MapNode::findMapNode(scene);
 
   osg::ref_ptr<osgGA::CameraManipulator> manip;
-  if (mapNode)
+  if (m_mapNode)
   { 
     // install our default manipulator (do this before calling load)
     manip = new EarthManipulator(arguments);
@@ -631,7 +723,7 @@ int main(int argc, char** argv)
 
   viewer.setCameraManipulator(manip.get());
 
-  m_skyViewHandler = new SolarInteractiveHandler(scene, root, mapNode, manip, &viewer, &m_solarParam, onResultsUpdated);
+  m_skyViewHandler = new SolarInteractiveHandler(scene, root, m_mapNode, manip, &viewer, &m_solarParam, onResultsUpdated);
  
   // create a surface to house the controls
   m_mainUICanvas = CustomControls::ControlCanvas::getOrCreate(&viewer);
@@ -642,7 +734,9 @@ int main(int argc, char** argv)
   CustomControls::ControlCanvas* popupCanvas = CustomControls::ControlCanvas::getOrCreate(&viewer);
   // create some controls.
   createPopup(popupCanvas);
-
+  m_northArrow = createNorthArrow();
+  osg::Group* group = (osg::Group*)viewer.getCamera()->getChild(0);
+  group->addChild(m_northArrow);
   // zoom to a good startup position
 
   viewer.addEventHandler(m_skyViewHandler);

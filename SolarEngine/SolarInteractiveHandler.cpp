@@ -65,25 +65,33 @@ void SolarInteractiveHandler::printfVec3(osg::Vec3 v)
 
 void SolarInteractiveHandler::processIntersection(osgUtil::LineSegmentIntersector* ray)
 {
-	osg::Vec3d orieye, oricenter, oriup;
-	m_viewer->getCamera()->getViewMatrixAsLookAt(orieye, oricenter, oriup);
+
 	if (ray->getIntersections().size() == 0)
 		return;
+	osg::Vec3d worldPos = ray->getFirstIntersection().getWorldIntersectPoint();
+	osg::NodePath nodePath = ray->getFirstIntersection().nodePath;
+	osg::Node* node = nodePath[0];
+	if (!isEarth() && !m_sceneNode->getBound().contains(worldPos))
+		return;
+	bool hasSpatialRef = isEarth();
+	osg::Matrixd local2world = osg::Matrixd::identity();
+	osg::Vec3d geoPos = osg::Vec3d(m_solarParam->m_lon, m_solarParam->m_lat, m_solarParam->m_elev + worldPos.z());
+	if (hasSpatialRef)
+	{
+		std::tie(hasSpatialRef, geoPos, local2world) = getGeoTransform(worldPos);
+		if (geoPos.z() < -1000 || geoPos.z() > 10000)
+			return;
+	}
+
+	osg::Vec3d orieye, oricenter, oriup;
+	m_viewer->getCamera()->getViewMatrixAsLookAt(orieye, oricenter, oriup);
 	osg::Vec3d _dir = orieye - oricenter;
 	_dir.normalize();
 	osg::Vec3d curcenter = ray->getFirstIntersection().getWorldIntersectPoint();
 	osg::Vec3d cureye = ray->getFirstIntersection().getWorldIntersectPoint() + _dir * 50;
-
-	osg::Vec3d worldPos = ray->getFirstIntersection().getWorldIntersectPoint();
-	if (!m_sceneNode->getBound().contains(worldPos))
-		return;
 	osg::Vec3d surfaceNormal = ray->getFirstIntersection().getWorldIntersectNormal();
 	surfaceNormal.normalize();
 	worldPos = worldPos + surfaceNormal * 0.1; //offset from the surface
-
-	bool hasSpatialRef = isEarth();
-	osg::Vec3d geoPos = osg::Vec3d(m_solarParam->m_lon, m_solarParam->m_lat, m_solarParam->m_elev + worldPos.z());
-	osg::Matrixd local2world = osg::Matrixd::identity();
 	if (hasSpatialRef)
 	{
 		std::tie(hasSpatialRef, geoPos, local2world) = getGeoTransform(worldPos);
