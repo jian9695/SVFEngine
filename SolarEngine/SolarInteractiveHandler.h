@@ -36,7 +36,7 @@ public:
 	osg::Image* getFisheyeForPoint(const int& pointId);
 
 private:
-	void computeMouseIntersection(osgUtil::LineSegmentIntersector* ray);
+	void processIntersection(osgUtil::LineSegmentIntersector* ray);
 	SolarRadiation calSolar(SolarParam& solarParam);
 	bool isEarth();
 	std::tuple<bool, osg::Vec3d, osg::Matrixd> getGeoTransform(osg::Vec3d worldPos);

@@ -63,7 +63,7 @@ void SolarInteractiveHandler::printfVec3(osg::Vec3 v)
 	printf("%f,%f,%f\n", v.x(), v.y(), v.z());
 }
 
-void SolarInteractiveHandler::computeMouseIntersection(osgUtil::LineSegmentIntersector* ray)
+void SolarInteractiveHandler::processIntersection(osgUtil::LineSegmentIntersector* ray)
 {
 	osg::Vec3d orieye, oricenter, oriup;
 	m_viewer->getCamera()->getViewMatrixAsLookAt(orieye, oricenter, oriup);
@@ -155,8 +155,8 @@ bool SolarInteractiveHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GU
 			osg::ref_ptr<osgUtil::LineSegmentIntersector> ray = new osgUtil::LineSegmentIntersector(osgUtil::Intersector::PROJECTION, ea.getXnormalized(), ea.getYnormalized());
 			osgUtil::IntersectionVisitor visitor(ray);
 			viewer->getCamera()->accept(visitor);
-			computeMouseIntersection(ray.get());
-			return true;
+			processIntersection(ray.get());
+			return false;
 		}
 		else if (osgGA::GUIEventAdapter::KEYDOWN)
 		{
@@ -164,17 +164,17 @@ bool SolarInteractiveHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GU
 			if (key == osgGA::GUIEventAdapter::KEY_Delete || key == osgGA::GUIEventAdapter::KEY_KP_Delete || key == osgGA::GUIEventAdapter::KEY_BackSpace || key == 65454)
 			{
 				m_pointRenderer->popPoint();
-				return true;
+				return false;
 			}
 			else if (key == osgGA::GUIEventAdapter::KEY_Z)
 			{
 				m_pointRenderer->undo();
-				return true;
+				return false;
 			}
 			else if (key == osgGA::GUIEventAdapter::KEY_Y)
 			{
 				m_pointRenderer->redo();
-				return true;
+				return false;
 			}
 			else if (key == osgGA::GUIEventAdapter::KEY_E)
 			{
@@ -184,7 +184,7 @@ bool SolarInteractiveHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GU
 				filenameSS << 1900 + now->tm_year << "-" << now->tm_mon + 1 << "-" << now->tm_mday
 					<< "-" << now->tm_hour << "-" << now->tm_min << "-" << now->tm_sec << ".csv";
 				m_pointRenderer->exportPoints(filenameSS.str());
-				return true;
+				return false;
 			}
 			//printf("%d,%d,%d\n", key, osgGA::GUIEventAdapter::KEY_Z, osgGA::GUIEventAdapter::KEY_Y);
 		}

@@ -31,6 +31,8 @@ SolarParam m_solarParam;
 size_t m_frameCount = 1;
 
 osg::ref_ptr<SolarInteractiveHandler> m_skyViewHandler;
+CustomControls::ControlCanvas* m_mainUICanvas;
+CustomControls::VBox* m_mainUIControl;
 CustomControls::HBox* m_popupControl;
 std::map<std::string, CustomControls::Control*> m_controls;
 CustomControls::VBox* m_parametersControl;
@@ -100,11 +102,10 @@ float getEndDay()
 void onResultsUpdated(float svf, SolarRadiation rad)
 {
   m_svfLabel->setText("SVF: " + Utils::value2String(svf, 3));
-  std::string unit = " [kWh/m2]";
   rad = rad / 1000;
-  m_globalRadLabel->setText("Global radiation: " + Utils::value2String(rad.m_global, 3) + unit);
-  m_beamRadLabel->setText("Beam radiation: " + Utils::value2String(rad.m_beam, 3) + unit);
-  m_diffuseRadLabel->setText("Diffuse radiation: " + Utils::value2String(rad.m_diffuse, 3) + unit);
+  m_globalRadLabel->setText("Global radiation [kWh/m2]: " + Utils::value2String(rad.m_global, 3));
+  m_beamRadLabel->setText("Beam radiation [kWh/m2]: " + Utils::value2String(rad.m_beam, 3));
+  m_diffuseRadLabel->setText("Diffuse radiation [kWh/m2]: " + Utils::value2String(rad.m_diffuse, 3));
   //printf("Global: %f\n", rad.global);
 }
 
@@ -302,15 +303,15 @@ private:
     }
     else if (m_name == "ToggleParameters")
     {
-      m_parametersControl->setNodeMask(value);
+      m_parametersControl->setVisible(value);
     }
     else if (m_name == "ToggleResults")
     {
-      m_resultLabelsControl->setNodeMask(value);
+      m_resultLabelsControl->setVisible(value);
     }
     else if (m_name == "ToggleFisheye")
     {
-      m_fisheyeControl->setNodeMask(value);
+      m_fisheyeControl->setVisible(value);
     }
   }
 };
@@ -324,38 +325,90 @@ public:
     setChildSpacing(0);
     setChildVertAlign(CustomControls::Control::ALIGN_CENTER);
     setHorizFill(true);
-    m_nameLabel = new CustomControls::LabelControl("");
-    m_nameLabel->setHorizAlign(CustomControls::Control::ALIGN_LEFT);
-    m_nameLabel->setVertAlign(CustomControls::Control::ALIGN_CENTER);
-    m_nameLabel->setTextBackdropOffset(3);
-    m_nameLabel->setFontSize(UI_FONT_SIZE);
-    addControl(m_nameLabel);
+    osg::Vec4 borderColor(0.8, 0.8, 0.8, 1);
+    int borderWidth = 2;
+    m_namesLabel = new CustomControls::LabelControl("");
+    m_namesLabel->setHorizAlign(CustomControls::Control::ALIGN_LEFT);
+    m_namesLabel->setVertAlign(CustomControls::Control::ALIGN_CENTER);
+    m_namesLabel->setTextBackdropOffset(3);
+    m_namesLabel->setFontSize(UI_FONT_SIZE);
+    m_namesLabel->setBorderColor(borderColor);
+    m_namesLabel->setBorderWidth(borderWidth);
+
+    m_valuesLabel = new CustomControls::LabelControl("");
+    m_valuesLabel->setHorizAlign(CustomControls::Control::ALIGN_LEFT);
+    m_valuesLabel->setVertAlign(CustomControls::Control::ALIGN_CENTER);
+    m_valuesLabel->setTextBackdropOffset(3);
+    m_valuesLabel->setFontSize(UI_FONT_SIZE);
+    m_valuesLabel->setBorderColor(borderColor);
+    m_valuesLabel->setBorderWidth(borderWidth);
+
     m_fisheyeImagel = new CustomControls::ImageControl;
     m_fisheyeImagel->setSize(256, 256);
-    osg::Vec4 borderColor(0.0, 0.0, 0.0, 1.0);
     m_fisheyeImagel->setBorderColor(borderColor);
+    m_fisheyeImagel->setBorderWidth(borderWidth);
+
+    addControl(m_namesLabel);
+    addControl(m_valuesLabel);
     addControl(m_fisheyeImagel);
   }
 
   void SetPoint(SolarRadiationPoint& point)
   {
     m_point = point;
-    m_nameLabel->setText(m_point.toString());
+    std::string names;
+    std::string values;
+    m_point.toString(names, values);
+    m_namesLabel->setText(names);
+    m_valuesLabel->setText(values);
     osg::Image* fisheye = m_skyViewHandler->getFisheyeForPoint(m_point.m_id);
     if (fisheye)
       m_fisheyeImagel->setImage(fisheye);
   }
 
+  void setPositionSmart(int x, int y, int viewWidth, int viewHeight)
+  {
+    if (m_point.m_id < 0)
+    {
+      setPosition(x, y);
+      return;
+    }
+    float width = renderSize().x();
+    float height = renderSize().y();
+    int xdiff = (x + width) - viewWidth;
+    int ydiff = (y + height) - viewHeight;
+    if (xdiff < 0 && ydiff < 0)
+    {
+      setPosition(x, y);
+      return;
+    }
+
+    int xoffset = 0;
+    if (xdiff > 0 && (x - width) > 0)
+    {
+      xoffset = -width;
+    }
+
+    int yoffset = 0;
+    if (ydiff > 0 && (y - height) > 0)
+    {
+      yoffset = -height;
+    }
+
+    setPosition(x + xoffset, y + yoffset);
+  }
+
   SolarRadiationPoint m_point;
-  CustomControls::LabelControl* m_nameLabel;
+  CustomControls::LabelControl* m_namesLabel;
+  CustomControls::LabelControl* m_valuesLabel;
   CustomControls::ImageControl* m_fisheyeImagel;
 };
 
 void createMainUIControls(CustomControls::ControlCanvas* cs)
 {
-  CustomControls::VBox* ul = new CustomControls::VBox();
-  ul->setPosition(0, 0);
-  ul->setPadding(5);
+  m_mainUIControl = new CustomControls::VBox();
+  m_mainUIControl->setPosition(0, 0);
+  m_mainUIControl->setPadding(5);
   int maxLabelLen = 20;
   osg::Vec4 backgroundColor(0.0, 0.0, 0.0, 0.6);
   osg::Vec4 borderColor(0.0, 0.0, 0.0, 1.0);
@@ -413,12 +466,12 @@ void createMainUIControls(CustomControls::ControlCanvas* cs)
   CustomControls::ImageControl* fishEyeImg = new CustomControls::ImageControl(m_skyViewHandler->fisheyeSurface()->Texture());
   fishEyeImg->setSize(320, 320);
   m_fisheyeControl->addControl(fishEyeImg);
-  ul->addControl(togglesControl);
-  ul->addControl(m_parametersControl);
-  ul->addControl(m_resultLabelsControl);
-  ul->addControl(m_fisheyeControl);
+  m_mainUIControl->addControl(togglesControl);
+  m_mainUIControl->addControl(m_parametersControl);
+  m_mainUIControl->addControl(m_resultLabelsControl);
+  m_mainUIControl->addControl(m_fisheyeControl);
 
-  cs->addControl(ul);
+  cs->addControl(m_mainUIControl);
 }
 
 void createPopup(CustomControls::ControlCanvas* cs)
@@ -433,9 +486,9 @@ void createPopup(CustomControls::ControlCanvas* cs)
   popup->setBorderColor(borderColor);
   popup->setBackColor(backgroundColor);
   popup->setBorderWidth(5);
-  popup->m_nameLabel->setFontSize(UI_FONT_SIZE);
-  popup->m_nameLabel->setForeColor(fontColor);
-  popup->setNodeMask(false);
+  popup->m_namesLabel->setFontSize(UI_FONT_SIZE);
+  popup->m_namesLabel->setForeColor(fontColor);
+  popup->setVisible(false);
   m_popupControl = popup;
   cs->addControl(popup);
 }
@@ -447,11 +500,7 @@ private:
 public:
   bool handle(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa)
   {
-    if (ea.getEventType() == osgGA::GUIEventAdapter::MOVE)
-      return false;
-    if (ea.getEventType() == osgGA::GUIEventAdapter::KEYUP)
-      return false;
-    if (ea.getEventType() == osgGA::GUIEventAdapter::KEYDOWN)
+    if (ea.getEventType() == osgGA::GUIEventAdapter::FRAME)
       return false;
     if (ea.getEventType() == osgGA::GUIEventAdapter::DOUBLECLICK)
       return false;
@@ -459,32 +508,63 @@ public:
       return false;
 
     int key = ea.getUnmodifiedKey();
+
+    if (ea.getEventType() == osgGA::GUIEventAdapter::KEYDOWN && key == osgGA::GUIEventAdapter::KEY_H)
+    {
+      m_mainUIControl->setVisible(!m_mainUIControl->visible());
+      return true;
+    }
+
     PopupControl* popup = (PopupControl*)m_popupControl;
     osgViewer::Viewer* viewer = dynamic_cast<osgViewer::Viewer*>(&aa);
     if (!viewer)
       return false;
 
-    if (ea.getEventType() == osgGA::GUIEventAdapter::FRAME & m_frameCount % 10 == 0)
+    bool handlePointQuery = false;
+    if (
+      (ea.getEventType() == osgGA::GUIEventAdapter::KEYUP || 
+      ea.getEventType() == osgGA::GUIEventAdapter::KEYDOWN)
+   && (ea.getUnmodifiedKey() == osgGA::GUIEventAdapter::KEY_Control_L || 
+     ea.getUnmodifiedKey() == osgGA::GUIEventAdapter::KEY_Control_R)
+      )
     {
-      SolarRadiationPoint point;
-      if (m_skyViewHandler->queryPoint(ea.getXnormalized(), ea.getYnormalized(), point))
-      {
-        float viewWidth = viewer->getCamera()->getViewport()->width();
-        float viewHeight = viewer->getCamera()->getViewport()->height();
-        int x = (int)((ea.getXnormalized() * 0.5 + 0.5) * viewWidth) + 10;
-        int y = (int)((1.0 - (ea.getYnormalized() * 0.5 + 0.5)) * viewHeight) + 10;
-        popup->setPosition(x, y);
-        if (popup->m_point.m_id != point.m_id)
-        {
-          popup->SetPoint(point);
-        }
-        popup->setNodeMask(true);
-      }
-      else
-      {
-        popup->setNodeMask(false);
-      }
+      handlePointQuery = true;
     }
+    else if (ea.getEventType() == osgGA::GUIEventAdapter::MOVE
+      && (ea.getModKeyMask() & ea.MODKEY_CTRL))
+    {
+      handlePointQuery = true;
+    }
+    else if (ea.getEventType() == osgGA::GUIEventAdapter::MOVE)
+    {
+      popup->setVisible(false);
+    }
+
+    if (!handlePointQuery)
+    {
+      return false;
+    }
+
+    SolarRadiationPoint point;
+    if (m_skyViewHandler->queryPoint(ea.getXnormalized(), ea.getYnormalized(), point))
+    {
+      float viewWidth = viewer->getCamera()->getViewport()->width();
+      float viewHeight = viewer->getCamera()->getViewport()->height();
+      int x = (int)((ea.getXnormalized() * 0.5 + 0.5) * viewWidth) + 10;
+      int y = (int)((1.0 - (ea.getYnormalized() * 0.5 + 0.5)) * viewHeight) + 10;
+      bool isInitialized = popup->m_point.m_id > -1;
+      if (popup->m_point.m_id != point.m_id)
+      {
+        popup->setPositionSmart(x, y, viewWidth, viewHeight);
+        popup->SetPoint(point);
+      }
+      popup->setVisible(true);
+    }
+    else
+    {
+      popup->setVisible(false);
+    }
+
     return false;
   }
 };
@@ -554,9 +634,9 @@ int main(int argc, char** argv)
   m_skyViewHandler = new SolarInteractiveHandler(scene, root, mapNode, manip, &viewer, &m_solarParam, onResultsUpdated);
  
   // create a surface to house the controls
-  CustomControls::ControlCanvas* uiCanvas = CustomControls::ControlCanvas::getOrCreate(&viewer);
+  m_mainUICanvas = CustomControls::ControlCanvas::getOrCreate(&viewer);
   // create some controls.
-  createMainUIControls(uiCanvas);
+  createMainUIControls(m_mainUICanvas);
 
   // create a surface to house the controls
   CustomControls::ControlCanvas* popupCanvas = CustomControls::ControlCanvas::getOrCreate(&viewer);

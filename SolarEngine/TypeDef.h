@@ -297,10 +297,9 @@ struct SolarRadiationPoint : public SolarParam, public SolarRadiation
 	int m_id;
 
 	SolarRadiationPoint() { m_id = 0; }
-
 	SolarRadiationPoint(const osg::Vec3d position, const SolarParam& param, const SolarRadiation& rad);
-
 	std::string toString();
+	std::string toString(std::string& names, std::string& values);
 };
 
 
