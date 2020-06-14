@@ -283,3 +283,23 @@ osg::Image* SolarInteractiveHandler::getFisheyeForPoint(const int& pointId)
 {
 	return m_pointRenderer->getFisheyeForPoint(pointId);
 }
+
+std::tuple<osg::Vec3d, osg::Vec3d> SolarInteractiveHandler::queryCoordinatesAtMouse(const float& mouseX, const float& mouseY)
+{
+	osg::Image* depthImage = m_pointRenderer->depthImage();
+	osg::Vec2 normalizedScreenPos(mouseX, mouseY);
+	osg::Vec2 uv(normalizedScreenPos.x() * 0.5 + 0.5, normalizedScreenPos.y() * 0.5 + 0.5);
+	osg::Vec2 mousePos(normalizedScreenPos.x() * depthImage->s(), normalizedScreenPos.y() * depthImage->t());
+	float sceneDepth = depthImage->getColor(uv).r();
+	osg::Matrixd projInverse = osg::Matrixd::inverse(m_viewer->getCamera()->getProjectionMatrix());
+	osg::Matrixd viewInverse = osg::Matrixd::inverse(m_viewer->getCamera()->getViewMatrix());
+	osg::Vec3d worldPos = Utils::worldPosFromDepth(sceneDepth, projInverse, viewInverse, uv);
+	bool hasSpatialRef = isEarth();
+	osg::Matrixd local2world = osg::Matrixd::identity();
+	osg::Vec3d geoPos = worldPos;
+	if (hasSpatialRef)
+	{
+		std::tie(hasSpatialRef, geoPos, local2world) = getGeoTransform(worldPos);
+	}
+	return std::make_tuple(worldPos, geoPos);
+}

@@ -33,6 +33,7 @@ public:
 	RenderSurface* fisheyeSurface() { return m_cubemap2fisheyeCamera; }
 	void postDrawUpdate();
 	bool queryPoint(const float& mouseX, const float& mouseY, SolarRadiationPoint& solarPoint);
+	std::tuple<osg::Vec3d, osg::Vec3d> SolarInteractiveHandler::queryCoordinatesAtMouse(const float& mouseX, const float& mouseY);
 	osg::Image* getFisheyeForPoint(const int& pointId);
 
 private:

@@ -14,7 +14,6 @@
 /Release
 /ReleaseD
 *.dll
-*.png
 *.ipdb
 *.iobj
 *.exe
@@ -25,3 +24,11 @@
 /bin/depth1.jpg
 /bin/depth1 - Copy.jpg
 /bin/depth.jpg
+/bin/POS_Z.png
+/bin/POS_Y.png
+/bin/POS_X.png
+/bin/NEG_Z.png
+/bin/NEG_Y.png
+/bin/NEG_X.png
+/bin/fisheye2.png
+/bin/fisheye.png

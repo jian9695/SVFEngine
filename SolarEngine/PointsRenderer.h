@@ -39,6 +39,7 @@ public:
 	void postDrawUpdate();
 	bool queryPoint(const float& mouseX, const float& mouseY, SolarRadiationPoint& solarPoint);
 	osg::Image* getFisheyeForPoint(const int& pointId);
+	osg::Image* depthImage() { return m_sceneDepthImage; }
 
 private:
 	std::vector<Action> m_doStack;

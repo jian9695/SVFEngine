@@ -32,7 +32,6 @@ SolarParam m_solarParam;
 size_t m_frameCount = 1;
 
 osg::ref_ptr<SolarInteractiveHandler> m_skyViewHandler;
-CustomControls::ControlCanvas* m_mainUICanvas;
 CustomControls::VBox* m_mainUIControl;
 CustomControls::HBox* m_popupControl;
 std::map<std::string, CustomControls::Control*> m_controls;
@@ -43,53 +42,49 @@ CustomControls::LabelControl* m_svfLabel;
 CustomControls::LabelControl* m_globalRadLabel;
 CustomControls::LabelControl* m_beamRadLabel;
 CustomControls::LabelControl* m_diffuseRadLabel;
+CustomControls::LabelControl* m_statusBar;
 MapNode* m_mapNode;
-ScreenOverlay* m_northArrow;
+CustomControls::CustomImageControl* m_compass;
 
-ScreenOverlay* createNorthArrow()
+CustomControls::CustomImageControl* createCompass(CustomControls::ControlCanvas* cs, int viewWidth, int viewHeight)
 {
-  ScreenOverlay* overlay = new ScreenOverlay;
-  char vertexSource[] =
+  char fragmentSource[] =
+    "uniform sampler2D texture0;\n"
     "uniform float rotateAngle;\n"
     "vec2 rotateXY(vec2 xy, float rotation)\n"
     "{\n"
-    "   float mid = 0.0;\n"
+    "   float mid = 0.5;\n"
     "   float x = cos(rotation) * (xy.x - mid) + sin(rotation) * (xy.y - mid) + mid;\n"
     "   float y = cos(rotation) * (xy.y - mid) - sin(rotation) * (xy.x - mid) + mid;\n"
     "   return vec2(x,y);\n"
     "}\n"
-    "void main(void)\n"
-    "{\n"
-    "   gl_TexCoord[0] = vec4(gl_Vertex.x*0.5+0.5,gl_Vertex.y*0.5+0.5,0,1);\n"
-    "   vec2 pos = rotateXY(gl_Vertex.xy, rotateAngle * 0.0174533) * 0.1 + vec2(0.8);\n"
-    "   gl_Position = vec4(pos.x,pos.y,0,1.0);\n"
-    "}\n";
-
-  char fragmentSource[] =
-    "uniform sampler2D texture0;\n"
     "void main(void) \n"
     "{\n"
-    "    vec4 color = texture2D(texture0, gl_TexCoord[0].xy);\n"
+    "    vec4 color = texture2D(texture0, rotateXY(gl_TexCoord[0].xy, rotateAngle * 0.0174533));\n"
     "    if(color.a < 0.5)\n"
-    "      color = vec4(1,1,0,0.1);\n"
+    "      color = vec4(0.1,0.1,0.1,0.4);\n"
     "    else\n"
     "      color = color + vec4(0,0.3,0,0);\n"
     "    gl_FragColor = color;\n"
     "}\n";
-  overlay->SetVertexShader(vertexSource);
-  overlay->SetFragmentShader(fragmentSource);
-  overlay->setProgramName("NorthArrowProgram");
-  //overlay->setTextureLayer
   osg::ref_ptr<osg::Image> img = osgDB::readImageFile("./data/compass.png");
   osg::ref_ptr<osg::Texture2D> tex = new osg::Texture2D;
+  tex->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR);
+  tex->setFilter(osg::Texture::MAG_FILTER, osg::Texture::LINEAR);
   tex->setImage(img.get());
-  overlay->setTextureLayer(tex.get());
-  overlay->getOrCreateStateSet()->setMode(GL_BLEND, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
-  overlay->getOrCreateStateSet()->setAttributeAndModes(new osg::Depth(osg::Depth::ALWAYS, 0, 1, false));
-  overlay->getOrCreateStateSet()->setRenderBinDetails(0, "TraversalOrderBin");
-  float rotateAngle = 0.0;
-  overlay->getOrCreateStateSet()->addUniform(new osg::Uniform("rotateAngle", rotateAngle));
-  return overlay;
+
+  CustomControls::CustomImageControl* imageCtrl = new CustomControls::CustomImageControl;
+  imageCtrl->setSize(128, 128);
+  imageCtrl->setPosition(viewWidth - 128 - 10, 10);
+  imageCtrl->setImage(img.get());
+  imageCtrl->getOrCreateStateSet()->addUniform(new osg::Uniform("rotateAngle", 0.0f));
+  
+  ProgramBinder binder;
+  binder.initialize("NorthArrowProgram", imageCtrl->getOrCreateStateSet());
+  binder.setFragmentShader(fragmentSource);
+  imageCtrl->getOrCreateStateSet()->setTextureAttributeAndModes(0, tex.get(), osg::StateAttribute::ON);
+  cs->addChild(imageCtrl);
+  return imageCtrl;
 }
 
 SolarParam createSolarParam()
@@ -129,24 +124,6 @@ public:
 
   virtual void onValueChanged(CustomControls::Control* control, bool value) {}
 };
-
-bool getSingleDayMode() 
-{
-  auto iter = m_controls.find("SingleDayMode");
-  return ((ParamControlBase*)iter->second)->m_check->getValue();
-}
-
-float getStartDay()
-{
-  auto iter = m_controls.find("StartDay");
-  return ((ParamControlBase*)iter->second)->m_slider->getValue();
-}
-
-float getEndDay()
-{
-  auto iter = m_controls.find("EndDay");
-  return ((ParamControlBase*)iter->second)->m_slider->getValue();
-}
 
 void onResultsUpdated(float svf, SolarRadiation rad)
 {
@@ -252,6 +229,25 @@ public:
     addControl(m_slider);
     addControl(m_valueLabel);
     addControl(m_check);
+  }
+
+
+  static bool getSingleDayMode()
+  {
+    auto iter = m_controls.find("SingleDayMode");
+    return ((ParamControlBase*)iter->second)->m_check->getValue();
+  }
+
+  static float getStartDay()
+  {
+    auto iter = m_controls.find("StartDay");
+    return ((ParamControlBase*)iter->second)->m_slider->getValue();
+  }
+
+  static float getEndDay()
+  {
+    auto iter = m_controls.find("EndDay");
+    return ((ParamControlBase*)iter->second)->m_slider->getValue();
   }
 
 private:
@@ -453,7 +449,7 @@ public:
   CustomControls::ImageControl* m_fisheyeImagel;
 };
 
-void createMainUIControls(CustomControls::ControlCanvas* cs)
+void createMainUIControls(CustomControls::ControlCanvas* cs, int viewWidth, int viewHeight)
 {
   m_mainUIControl = new CustomControls::VBox();
   m_mainUIControl->setPosition(0, 0);
@@ -521,6 +517,17 @@ void createMainUIControls(CustomControls::ControlCanvas* cs)
   m_mainUIControl->addControl(m_fisheyeControl);
 
   cs->addControl(m_mainUIControl);
+
+  m_compass = createCompass(cs, viewWidth, viewHeight);
+  cs->addControl(m_compass);
+
+  m_statusBar = new CustomControls::LabelControl("", fontColor);
+  m_statusBar->setFontSize(UI_FONT_SIZE);
+  m_statusBar->setBackColor(backgroundColor);
+  m_statusBar->setPosition(viewWidth * 0.5 - 50, viewHeight - 50);
+  //m_statusBar->setBorderColor(borderColor);
+  m_statusBar->setPadding(15);
+  cs->addControl(m_statusBar);
 }
 
 void createPopup(CustomControls::ControlCanvas* cs)
@@ -545,7 +552,7 @@ void createPopup(CustomControls::ControlCanvas* cs)
 class MainUIEventHandler : public osgGA::GUIEventHandler
 {
 private:
-  float calAzimuth(float x, float y)
+  float calAngle(float x, float y)
   {
     float x2 = 0.0;
     float y2 = 1.0;
@@ -579,7 +586,7 @@ public:
           double projectedY = look * osg::Vec3d(1,0,0);
           osg::Vec2d xy(projectedY, projectedX);
           xy.normalize();
-          rotateAngle = 360 - calAzimuth(xy.x(), xy.y());
+          rotateAngle = calAngle(xy.x(), xy.y());
         }
         else 
         {
@@ -589,10 +596,40 @@ public:
           look.normalize();
           osg::Vec2d xy(look.x(), look.y());
           xy.normalize();
-          rotateAngle = 360 - calAzimuth(xy.x(), xy.y());
+          rotateAngle = calAngle(xy.x(), xy.y());
         }
-        m_northArrow->getOrCreateStateSet()->getUniform("rotateAngle")->set(rotateAngle);
+        m_compass->getOrCreateStateSet()->getUniform("rotateAngle")->set(rotateAngle);
       }
+      return false;
+    }
+
+    if (ea.getEventType() == osgGA::GUIEventAdapter::MOVE)
+    {
+      osg::Vec3d worldPos, geoPos;
+      std::tie(worldPos, geoPos) = m_skyViewHandler->queryCoordinatesAtMouse(ea.getXnormalized(), ea.getYnormalized());
+      std::stringstream ss;
+      ss.precision(4);
+
+      if (m_mapNode)
+      {
+        std::string lonFix = geoPos.x() > 0 ? "E" : "W";
+        std::string latFix = geoPos.y() > 0 ? "N" : "S";
+        std::string eleFix = "m";
+        ss << std::fixed << abs(geoPos.x()) << lonFix << " " << abs(geoPos.y()) << latFix << "    " << geoPos.z() << eleFix;
+      }
+      else
+      {
+        ss << std::fixed << worldPos.x() << "X" << " " << worldPos.y() << "Y" << " " << worldPos.z() << "Z";
+      }
+      m_statusBar->setText(ss.str());
+    }
+
+    if (ea.getEventType() == osgGA::GUIEventAdapter::RESIZE)
+    {
+      int viewWidth = viewer->getCamera()->getViewport()->width();
+      int viewHeight = viewer->getCamera()->getViewport()->height();
+      m_compass->setPosition(viewWidth - 128 - 10, 10);
+      m_statusBar->setPosition(viewWidth * 0.5 - 100, viewHeight - 50);
       return false;
     }
 
@@ -725,18 +762,22 @@ int main(int argc, char** argv)
 
   m_skyViewHandler = new SolarInteractiveHandler(scene, root, m_mapNode, manip, &viewer, &m_solarParam, onResultsUpdated);
  
-  // create a surface to house the controls
-  m_mainUICanvas = CustomControls::ControlCanvas::getOrCreate(&viewer);
-  // create some controls.
-  createMainUIControls(m_mainUICanvas);
+
+  unsigned int width, height;
+  osg::GraphicsContext::ScreenIdentifier main_screen_id;
+  osg::GraphicsContext::WindowingSystemInterface* wsi = osg::GraphicsContext::getWindowingSystemInterface();
+  main_screen_id.readDISPLAY();
+  main_screen_id.setUndefinedScreenDetailsToDefaultScreen();
+  wsi->getScreenResolution(main_screen_id, width, height);
 
   // create a surface to house the controls
-  CustomControls::ControlCanvas* popupCanvas = CustomControls::ControlCanvas::getOrCreate(&viewer);
+  CustomControls::ControlCanvas* canvas = CustomControls::ControlCanvas::getOrCreate(&viewer);
   // create some controls.
-  createPopup(popupCanvas);
-  m_northArrow = createNorthArrow();
-  osg::Group* group = (osg::Group*)viewer.getCamera()->getChild(0);
-  group->addChild(m_northArrow);
+  createMainUIControls(canvas, width, height);
+  createPopup(canvas);
+
+  //osg::Group* group = (osg::Group*)viewer.getCamera()->getChild(0);
+ // group->addChild(m_northArrow);
   // zoom to a good startup position
 
   viewer.addEventHandler(m_skyViewHandler);
@@ -755,12 +796,7 @@ int main(int argc, char** argv)
   // add the state manipulator
   viewer.addEventHandler(new osgGA::StateSetManipulator(viewer.getCamera()->getOrCreateStateSet()));
 
-  unsigned int width, height;
-  osg::GraphicsContext::ScreenIdentifier main_screen_id;
-  osg::GraphicsContext::WindowingSystemInterface* wsi = osg::GraphicsContext::getWindowingSystemInterface();
-  main_screen_id.readDISPLAY();
-  main_screen_id.setUndefinedScreenDetailsToDefaultScreen();
-  wsi->getScreenResolution(main_screen_id, width, height);
+ 
   //viewer.setUpViewInWindow(50, 50, 1024, 768);
   viewer.realize();
   while (!viewer.done())

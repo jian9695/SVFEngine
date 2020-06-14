@@ -1267,6 +1267,24 @@ ImageControl::draw( const ControlContext& cx )
     _dirty = false;
 }
 
+CustomImageControl::CustomImageControl(osg::Image* image)
+{
+  setStateSet(new osg::StateSet);
+  _rotation = Angular(0.0, Units::RADIANS);
+  _fixSizeForRot = false;
+  _opacity = 1.0f;
+  setImage(image);
+}
+
+CustomImageControl::CustomImageControl(osg::Texture* texture)
+{
+  setStateSet(new osg::StateSet);
+  _rotation = Angular(0.0, Units::RADIANS);
+  _fixSizeForRot = false;
+  _opacity = 1.0f;
+  setTexture(texture);
+}
+
 // ---------------------------------------------------------------------------
 static HSliderControl* _dragObject = nullptr;
 

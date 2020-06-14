@@ -462,7 +462,7 @@ namespace CustomControls
         virtual void calcSize( const ControlContext& context, osg::Vec2f& out_size );
         virtual void draw( const ControlContext& cx );
 
-    private:
+    protected:
         /** Recalculate the size of the texture */
         osg::Vec2i calculateImageSize() const;
 
@@ -475,6 +475,13 @@ namespace CustomControls
 
         static osg::observer_ptr<osg::StateSet> s_imageStateSet;
         osg::ref_ptr<osg::StateSet> getImageStateSet();
+    };
+
+    class CustomImageControl : public ImageControl
+    {
+    public:
+      CustomImageControl(osg::Image* image = 0L);
+      CustomImageControl(osg::Texture* texture);
     };
 
     /**
