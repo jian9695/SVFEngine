@@ -206,6 +206,11 @@ bool SolarInteractiveHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GU
 				m_pointRenderer->exportPoints(filenameSS.str());
 				return false;
 			}
+			else if (key == osgGA::GUIEventAdapter::KEY_T)
+			{
+				m_pointRenderer->toggleTextDisplay();
+				return false;
+			}
 			//printf("%d,%d,%d\n", key, osgGA::GUIEventAdapter::KEY_Z, osgGA::GUIEventAdapter::KEY_Y);
 		}
 	}

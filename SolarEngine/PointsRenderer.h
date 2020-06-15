@@ -27,7 +27,7 @@ public:
 class PointsRenderer : public osg::Group
 {
 public:
-	PointsRenderer() { m_sceneDepthImage = nullptr; m_sceneCamera = nullptr; m_pointId = 0; };
+	PointsRenderer() { m_sceneDepthImage = nullptr; m_sceneCamera = nullptr; m_pointId = 0; m_toggleTextDisplay = true; };
 	//void pushPoint(const osg::Vec3d& point, const SolarParam& param, const SolarRadiation& rad);
 	void pushPoint(SolarRadiationPoint& point, const osg::Image* img = nullptr);
 	void popPoint();
@@ -40,6 +40,7 @@ public:
 	bool queryPoint(const float& mouseX, const float& mouseY, SolarRadiationPoint& solarPoint);
 	osg::Image* getFisheyeForPoint(const int& pointId);
 	osg::Image* depthImage() { return m_sceneDepthImage; }
+	bool toggleTextDisplay() { m_toggleTextDisplay = !m_toggleTextDisplay; return m_toggleTextDisplay; }
 
 private:
 	std::vector<Action> m_doStack;
@@ -47,6 +48,7 @@ private:
 	osg::Image* m_sceneDepthImage;
 	osg::Camera* m_sceneCamera;
 	int m_pointId;
+	bool m_toggleTextDisplay;
 	std::map<int, osg::ref_ptr<osg::Image>> m_imagesMap;
 private:
 	void performAction(const Action& action);

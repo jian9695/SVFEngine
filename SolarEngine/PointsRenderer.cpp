@@ -93,7 +93,7 @@ void PointsRenderer::pushPointInternal(const SolarRadiationPoint& point)
 	lod->setRangeMode(osg::LOD::PIXEL_SIZE_ON_SCREEN);
 	//lod->addChild(pointFar.get(), 0, 1000);
 	lod->addChild(pointNear.get(), 0, 10000000000);
-	lod->addChild(text.get(), 1000, 10000000000);
+	lod->addChild(text.get(), 0, 10000000000);
 	addChild(lod.get());
 }
 
@@ -265,7 +265,13 @@ void PointsRenderer::postDrawUpdate()
 		int imgx = (int)(uv.x() * m_sceneDepthImage->s());
 		int imgy = (int)(uv.y() * m_sceneDepthImage->t());
 		bool isVisible = isPointVisible(projInverse, viewInverse, eye, uv, distTocamera);
-		textNode->setNodeMask(isVisible);
+		bool textVisible = isVisible;
+		if (distTocamera > 300)
+		{
+			if (!m_toggleTextDisplay)
+				textVisible = false;
+		}
+		textNode->setNodeMask(textVisible);
 		pointNode->setNodeMask(isVisible);
 	}
 }

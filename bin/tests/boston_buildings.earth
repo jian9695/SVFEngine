@@ -15,6 +15,10 @@ osgearth_viewer boston_buildings.earth --kml ../data/BostonBuildings.kmz
     <image name="ReadyMap.org - Imagery" driver="tms">
         <url>http://readymap.org/readymap/tiles/1.0.0/22/</url>
     </image>
+
+    <elevation name="readymap_elevation" driver="tms">
+        <url>http://readymap.org/readymap/tiles/1.0.0/116/</url>
+    </elevation>
       
     <model name="buildings" driver="feature_geom">
              
