@@ -31,7 +31,7 @@ const int UI_FONT_SIZE = 18;
 SolarParam m_solarParam;
 size_t m_frameCount = 1;
 
-osg::ref_ptr<SolarInteractiveHandler> m_skyViewHandler;
+osg::ref_ptr<SolarInteractiveHandler> m_solarInteractiveHandler;
 CustomControls::VBox* m_mainUIControl;
 CustomControls::HBox* m_popupControl;
 std::map<std::string, CustomControls::Control*> m_controls;
@@ -406,7 +406,7 @@ public:
     m_point.toString(names, values);
     m_namesLabel->setText(names);
     m_valuesLabel->setText(values);
-    osg::Image* fisheye = m_skyViewHandler->getFisheyeForPoint(m_point.m_id);
+    osg::Image* fisheye = m_solarInteractiveHandler->getFisheyeForPoint(m_point.m_id);
     if (fisheye)
       m_fisheyeImagel->setImage(fisheye);
   }
@@ -508,7 +508,7 @@ void createMainUIControls(CustomControls::ControlCanvas* cs, int viewWidth, int 
   m_fisheyeControl = new CustomControls::VBox();
   m_fisheyeControl->setBackColor(backgroundColor);
   m_fisheyeControl->setBorderColor(borderColor);
-  CustomControls::ImageControl* fishEyeImg = new CustomControls::ImageControl(m_skyViewHandler->fisheyeSurface()->Texture());
+  CustomControls::ImageControl* fishEyeImg = new CustomControls::ImageControl(m_solarInteractiveHandler->fisheyeSurface()->Texture());
   fishEyeImg->setSize(320, 320);
   m_fisheyeControl->addControl(fishEyeImg);
   m_mainUIControl->addControl(togglesControl);
@@ -606,7 +606,7 @@ public:
     if (ea.getEventType() == osgGA::GUIEventAdapter::MOVE)
     {
       osg::Vec3d worldPos, geoPos;
-      std::tie(worldPos, geoPos) = m_skyViewHandler->queryCoordinatesAtMouse(ea.getXnormalized(), ea.getYnormalized());
+      std::tie(worldPos, geoPos) = m_solarInteractiveHandler->queryCoordinatesAtMouse(ea.getXnormalized(), ea.getYnormalized());
       std::stringstream ss;
       ss.precision(4);
 
@@ -675,7 +675,7 @@ public:
     }
 
     SolarRadiationPoint point;
-    if (m_skyViewHandler->queryPoint(ea.getXnormalized(), ea.getYnormalized(), point))
+    if (m_solarInteractiveHandler->queryPoint(ea.getXnormalized(), ea.getYnormalized(), point))
     {
       float viewWidth = viewer->getCamera()->getViewport()->width();
       float viewHeight = viewer->getCamera()->getViewport()->height();
@@ -760,7 +760,7 @@ int main(int argc, char** argv)
 
   viewer.setCameraManipulator(manip.get());
 
-  m_skyViewHandler = new SolarInteractiveHandler(scene, root, m_mapNode, manip, &viewer, &m_solarParam, onResultsUpdated);
+  m_solarInteractiveHandler = new SolarInteractiveHandler(scene, root, m_mapNode, manip, &viewer, &m_solarParam, onResultsUpdated);
  
 
   unsigned int width, height;
@@ -780,7 +780,7 @@ int main(int argc, char** argv)
  // group->addChild(m_northArrow);
   // zoom to a good startup position
 
-  viewer.addEventHandler(m_skyViewHandler);
+  viewer.addEventHandler(m_solarInteractiveHandler);
   viewer.addEventHandler(new MainUIEventHandler);
   viewer.addEventHandler(new osgViewer::ThreadingHandler);
 
@@ -804,7 +804,7 @@ int main(int argc, char** argv)
     viewer.frame();
     if (m_frameCount % 10 == 0)
     {
-      m_skyViewHandler->postDrawUpdate();
+      m_solarInteractiveHandler->postDrawUpdate();
     }
     m_frameCount++;
     if (m_frameCount > 1000000)
