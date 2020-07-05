@@ -74,7 +74,7 @@ public:
 		}
 		else if (m_type == ValType::f)
 		{
-			ofs << m_f;
+			ofs << std::fixed << m_f;
 		}
 		else if (m_type == ValType::s)
 		{

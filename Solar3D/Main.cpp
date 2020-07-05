@@ -742,8 +742,8 @@ int main(int argc, char** argv)
 
   osg::ArgumentParser arguments(&argc, argv);
 
-  if (argc < 2)
-    return 0;
+  //if (argc < 2)
+  //  return 0;
 
   // create a viewer:
   osgViewer::Viewer viewer(arguments);
@@ -845,7 +845,7 @@ int main(int argc, char** argv)
 
   // add the state manipulator
   viewer.addEventHandler(new osgGA::StateSetManipulator(viewer.getCamera()->getOrCreateStateSet()));
-  //viewer.setUpViewInWindow(50, 50, 1024, 768);
+  viewer.setUpViewInWindow(50, 50, 1024, 768);
   viewer.realize();
   for (size_t i = 0; i < 20; i++)
   {
@@ -870,7 +870,7 @@ int main(int argc, char** argv)
   ofs_horizontal << "pos,row,col,slope2d,slope3d,aspect2d,aspect3d,global2d,global3d,beam2d,beam3d,dif2d,dif3d,ref2d,ref3d,shadow2d,shadow3d\n";
   int sampleCount = 0;
   srand(time(NULL));
-  while (sampleCount < 20)
+  while (sampleCount < 100)
   {
     SolarParam param;
     param.m_linke = 3.0;
@@ -879,10 +879,10 @@ int main(int argc, char** argv)
     param.m_lat = 37.5131;
     param.m_slope = 0;
     param.m_aspect = 0;
-    param.m_isSingleDay = true;
+    param.m_isSingleDay = false;
     param.m_day = 183;
-    param.m_startDay = 183;
-    param.m_endDay = 183;
+    param.m_startDay = 1;
+    param.m_endDay = 365;
     double elevatedHeight = 0.1;
 
     int col, row, index;
@@ -983,6 +983,7 @@ int main(int argc, char** argv)
     }
     ofs_horizontal << "\n";
 
+    printf("%d/%d\n", sampleCount, 100);
     sampleCount++;
   }
   ofs_inclined.close();
