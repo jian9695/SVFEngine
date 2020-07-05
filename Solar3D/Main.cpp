@@ -866,11 +866,12 @@ int main(int argc, char** argv)
 
   std::ofstream ofs_inclined("e:/compare_inclined_025.csv");
   std::ofstream ofs_horizontal("e:/compare_horizontal_025.csv");
-  ofs_inclined << "pos,row,col,slope2d,slope3d,aspect2d,aspect3d,global2d,global3d,beam2d,beam3d,dif2d,dif3d,ref2d,ref3d,shadow2d,shadow3d\n";
-  ofs_horizontal << "pos,row,col,slope2d,slope3d,aspect2d,aspect3d,global2d,global3d,beam2d,beam3d,dif2d,dif3d,ref2d,ref3d,shadow2d,shadow3d\n";
+  ofs_inclined << "pos,row,col,slope2d,slope3d,aspect2d,aspect3d,global2d,global3d,beam2d,beam3d,dif2d,dif3d,ref2d,ref3d,percentageShaded2d,percentageShaded3d,shadow2d,shadow3d\n";
+  ofs_horizontal << "pos,row,col,slope2d,slope3d,aspect2d,aspect3d,global2d,global3d,beam2d,beam3d,dif2d,dif3d,ref2d,ref3d,percentageShaded,percentageShaded3d,shadow2d,shadow3d\n";
   int sampleCount = 0;
+  int requiredSamples = 10;
   srand(time(NULL));
-  while (sampleCount < 100)
+  while (sampleCount < requiredSamples)
   {
     SolarParam param;
     param.m_linke = 3.0;
@@ -879,11 +880,11 @@ int main(int argc, char** argv)
     param.m_lat = 37.5131;
     param.m_slope = 0;
     param.m_aspect = 0;
-    param.m_isSingleDay = false;
+    param.m_isSingleDay = true;
     param.m_day = 183;
     param.m_startDay = 1;
     param.m_endDay = 365;
-    double elevatedHeight = 0.1;
+    double elevatedHeight = 0.5;
 
     int col, row, index;
     double xrand = rand() / (double)RAND_MAX;
@@ -910,8 +911,8 @@ int main(int argc, char** argv)
 
     SolarRadiationPoint inclined2d, horizontal2d, inclined3d, horizontal3d;
     std::tie(inclined2d, horizontal2d) = dsmShadowCaster.calculateSolarRadiation(param, intersectPos2d);
-    double percentageShaded = calPercentageShaded(inclined2d.m_shadowMasks);
-    if (percentageShaded > 0.75)
+    double percentageShaded2d = calPercentageShaded(inclined2d.m_shadowMasks);
+    if (percentageShaded2d > 0.75)
       continue;
 
     osg::Vec3d intersectPos3d = intersector->getFirstIntersection().getWorldIntersectPoint();
@@ -922,9 +923,20 @@ int main(int argc, char** argv)
     param.m_slope = slope3d;
     param.m_aspect = aspect3d;
     std::tie(inclined3d, horizontal3d) = m_solarInteractiveHandler->calculateSolarRadiation(&param, intersector, elevatedHeight);
-    percentageShaded = calPercentageShaded(inclined3d.m_shadowMasks);
-    if (percentageShaded > 0.75)
+    double percentageShaded3d = calPercentageShaded(inclined3d.m_shadowMasks);
+    if (percentageShaded3d > 0.75)
       continue;
+
+    if (abs(horizontal2d.m_beam - horizontal3d.m_beam) / horizontal3d.m_beam > 0.4)
+    {
+      m_solarInteractiveHandler->pushPoint(inclined3d);
+      printf("%d/%d\n", sampleCount, requiredSamples);
+      sampleCount++;
+    }
+    else
+    {
+      continue;
+    }
 
     std::vector<OuputVariable> outputVariables;
     outputVariables.push_back(OuputVariable(intersectPos2d));
@@ -942,6 +954,8 @@ int main(int argc, char** argv)
     outputVariables.push_back(OuputVariable(inclined3d.m_diffuse));
     outputVariables.push_back(OuputVariable(inclined2d.m_reflected));
     outputVariables.push_back(OuputVariable(inclined3d.m_reflected));
+    outputVariables.push_back(OuputVariable(percentageShaded2d));
+    outputVariables.push_back(OuputVariable(percentageShaded3d));
     outputVariables.push_back(OuputVariable(inclined2d.m_shadowMasks));
     outputVariables.push_back(OuputVariable(inclined3d.m_shadowMasks));
     for (int v = 0; v < outputVariables.size(); v++)
@@ -971,6 +985,8 @@ int main(int argc, char** argv)
     outputVariables.push_back(OuputVariable(horizontal3d.m_diffuse));
     outputVariables.push_back(OuputVariable(horizontal2d.m_reflected));
     outputVariables.push_back(OuputVariable(horizontal3d.m_reflected));
+    outputVariables.push_back(OuputVariable(percentageShaded2d));
+    outputVariables.push_back(OuputVariable(percentageShaded3d));
     outputVariables.push_back(OuputVariable(horizontal2d.m_shadowMasks));
     outputVariables.push_back(OuputVariable(horizontal3d.m_shadowMasks));
     for (int v = 0; v < outputVariables.size(); v++)
@@ -982,13 +998,10 @@ int main(int argc, char** argv)
       }
     }
     ofs_horizontal << "\n";
-
-    printf("%d/%d\n", sampleCount, 100);
-    sampleCount++;
   }
   ofs_inclined.close();
   ofs_horizontal.close();
-  return 0;
+  //return 0;
 
   while (!viewer.done())
   {

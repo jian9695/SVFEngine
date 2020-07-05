@@ -149,7 +149,7 @@ std::tuple<SolarRadiationPoint, SolarRadiationPoint> SolarInteractiveHandler::ca
 	//SolarRadiationPoint radPoint(worldPos, param, solarRad);
 	//radPoint.m_shadowMasks = shadowMasks;
 	////m_resultsCallback(svf, solarRad);
-	m_pointRenderer->pushPoint(solaPointInclined, m_cubemap2fisheyeCamera->Image().get());
+	//m_pointRenderer->pushPoint(solaPointInclined, m_cubemap2fisheyeCamera->Image().get());
 
 	//param.m_slope = 0;
 	//param.m_aspect = 0;
@@ -412,4 +412,9 @@ std::tuple<osg::Vec3d, osg::Vec3d> SolarInteractiveHandler::queryCoordinatesAtMo
 		std::tie(hasSpatialRef, geoPos, local2world) = getGeoTransform(worldPos);
 	}
 	return std::make_tuple(worldPos, geoPos);
+}
+
+void SolarInteractiveHandler::pushPoint(SolarRadiationPoint& solarPoint)
+{
+	m_pointRenderer->pushPoint(solarPoint, m_cubemap2fisheyeCamera->Image().get());
 }
