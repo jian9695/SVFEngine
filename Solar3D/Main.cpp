@@ -755,16 +755,28 @@ int main(int argc, char** argv)
   // prevents the "unsupported wrapper" messages from OSG
   osgDB::Registry::instance()->getObjectWrapperManager()->findWrapper("osg::Image");
 
-  osg::ref_ptr<osg::Node> scene = MapNodeHelper().load(arguments, &viewer);
-  if (!scene)
-  {
-    scene = osgDB::readNodeFiles(arguments);
-  }
+  std::vector<std::string> tilenames;
+  tilenames.push_back("Tile_-002_-016");
+  tilenames.push_back("Tile_-002_-017");
+  tilenames.push_back("Tile_-003_-016");
+  tilenames.push_back("Tile_-003_-017");
+  osg::BoundingBoxd bound = calBound("E:/Data/weihai/Data/", tilenames);
+  osg::ref_ptr<osg::Node> scene = ModelLoader::Load3DTiles("E:/Data/weihai/Data/", tilenames, false);
+  osg::ref_ptr<osg::Node> studyArea = osgDB::readNodeFile("E:/Code/StudyArea.osgb");
+  ((osg::Group*)scene.get())->addChild(studyArea.get());
+  scene->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE | osg::StateAttribute::PROTECTED);
+  studyArea->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE | osg::StateAttribute::PROTECTED);
 
-  if (!scene)
-  {
-    scene = ModelLoader::Load3DTiles(arguments[1]);
-  }
+  //osg::ref_ptr<osg::Node> scene = MapNodeHelper().load(arguments, &viewer);
+  //if (!scene)
+  //{
+  //  scene = osgDB::readNodeFiles(arguments);
+  //}
+
+  //if (!scene)
+  //{
+  //  scene = ModelLoader::Load3DTiles(arguments[1]);
+  //}
 
   if (!scene)
     return 0;
@@ -833,10 +845,150 @@ int main(int argc, char** argv)
 
   // add the state manipulator
   viewer.addEventHandler(new osgGA::StateSetManipulator(viewer.getCamera()->getOrCreateStateSet()));
-
-
   //viewer.setUpViewInWindow(50, 50, 1024, 768);
   viewer.realize();
+  for (size_t i = 0; i < 20; i++)
+  {
+    viewer.frame();
+  }
+  manip->setHomePosition(bound.center() + osg::Vec3d(0, 0, 5000), bound.center(), osg::Vec3d(0, 1, 0));
+  manip->home(0.0);
+
+  ShadowCaster dsmShadowCaster;
+  std::vector<std::string> rasterFiles;
+  std::vector<osg::BoundingBoxd> bounds;
+  rasterFiles.push_back("E:/Code/Weihai_DSM_025_StudyArea.tif");
+  //rasterFiles.push_back("E:/Code/Weihai_DSM_1m.tif");
+  bounds.push_back(bound);
+  //bounds.push_back(osg::BoundingBoxd());
+  dsmShadowCaster.Initialize(rasterFiles, bounds, "E:/Code/WeihaiStudyArea/Slope.tif", "E:/Code/WeihaiStudyArea/Aspect.tif");
+  GDAL_DS<float>* ds = (GDAL_DS<float>*)dsmShadowCaster.m_rasters[0];
+
+  std::ofstream ofs_inclined("e:/compare_inclined_025.csv");
+  std::ofstream ofs_horizontal("e:/compare_horizontal_025.csv");
+  ofs_inclined << "pos,row,col,slope2d,slope3d,aspect2d,aspect3d,global2d,global3d,beam2d,beam3d,dif2d,dif3d,ref2d,ref3d,shadow2d,shadow3d\n";
+  ofs_horizontal << "pos,row,col,slope2d,slope3d,aspect2d,aspect3d,global2d,global3d,beam2d,beam3d,dif2d,dif3d,ref2d,ref3d,shadow2d,shadow3d\n";
+  int sampleCount = 0;
+  srand(time(NULL));
+  while (sampleCount < 20)
+  {
+    SolarParam param;
+    param.m_linke = 3.0;
+    param.m_time_step = 0.5;
+    param.m_lon = 122.1204;
+    param.m_lat = 37.5131;
+    param.m_slope = 0;
+    param.m_aspect = 0;
+    param.m_isSingleDay = true;
+    param.m_day = 183;
+    param.m_startDay = 183;
+    param.m_endDay = 183;
+    double elevatedHeight = 0.1;
+
+    int col, row, index;
+    double xrand = rand() / (double)RAND_MAX;
+    double yrand = rand() / (double)RAND_MAX;
+    double x = bound.xMin() + (bound.xMax() - bound.xMin()) * xrand;
+    double y = bound.yMin() + (bound.yMax() - bound.yMin()) * yrand;
+    std::tie(col, row, index) = ds->getCellIndex(x, y);
+    int margin = 350;
+    if (col < margin || row < margin || col > ds->ncols - margin || row > ds->nrows - margin)
+      continue;
+
+    osg::Vec3d end = osg::Vec3d(x, y, -1000);
+    osg::Vec3d	start = osg::Vec3d(x, y, 1000);
+    Ray ray(start, end - start);
+    double intersectDist, slope2d, aspect2d, slope3d, aspect3d;
+    bool intersects = dsmShadowCaster.Intersects(ray, intersectDist, slope2d, aspect2d);
+    osg::Vec3d intersectPos2d = ray.orig + ray.dir * intersectDist;
+    intersectPos2d = intersectPos2d + osg::Vec3d(0, 0, elevatedHeight);
+    osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector = new osgUtil::LineSegmentIntersector(start, end);
+    osgUtil::IntersectionVisitor intersectVisitor(intersector.get());
+    scene->accept(intersectVisitor);
+    if (!intersector->containsIntersections())
+      continue;
+
+    SolarRadiationPoint inclined2d, horizontal2d, inclined3d, horizontal3d;
+    std::tie(inclined2d, horizontal2d) = dsmShadowCaster.calculateSolarRadiation(param, intersectPos2d);
+    double percentageShaded = calPercentageShaded(inclined2d.m_shadowMasks);
+    if (percentageShaded > 0.75)
+      continue;
+
+    osg::Vec3d intersectPos3d = intersector->getFirstIntersection().getWorldIntersectPoint();
+    osg::Vec3d intersectNormal = intersector->getFirstIntersection().getWorldIntersectNormal();
+    intersectNormal.normalize();
+    slope3d = Utils::calculateSlope(intersectNormal);
+    aspect3d = Utils::calculateAspect(intersectNormal);
+    param.m_slope = slope3d;
+    param.m_aspect = aspect3d;
+    std::tie(inclined3d, horizontal3d) = m_solarInteractiveHandler->calculateSolarRadiation(&param, intersector, elevatedHeight);
+    percentageShaded = calPercentageShaded(inclined3d.m_shadowMasks);
+    if (percentageShaded > 0.75)
+      continue;
+
+    std::vector<OuputVariable> outputVariables;
+    outputVariables.push_back(OuputVariable(intersectPos2d));
+    outputVariables.push_back(OuputVariable(row));
+    outputVariables.push_back(OuputVariable(col));
+    outputVariables.push_back(OuputVariable(slope2d));
+    outputVariables.push_back(OuputVariable(slope3d));
+    outputVariables.push_back(OuputVariable(aspect2d));
+    outputVariables.push_back(OuputVariable(aspect3d));
+    outputVariables.push_back(OuputVariable(inclined2d.m_global));
+    outputVariables.push_back(OuputVariable(inclined3d.m_global));
+    outputVariables.push_back(OuputVariable(inclined2d.m_beam));
+    outputVariables.push_back(OuputVariable(inclined3d.m_beam));
+    outputVariables.push_back(OuputVariable(inclined2d.m_diffuse));
+    outputVariables.push_back(OuputVariable(inclined3d.m_diffuse));
+    outputVariables.push_back(OuputVariable(inclined2d.m_reflected));
+    outputVariables.push_back(OuputVariable(inclined3d.m_reflected));
+    outputVariables.push_back(OuputVariable(inclined2d.m_shadowMasks));
+    outputVariables.push_back(OuputVariable(inclined3d.m_shadowMasks));
+    for (int v = 0; v < outputVariables.size(); v++)
+    {
+      outputVariables[v].out(ofs_inclined);
+      if (v != outputVariables.size())
+      {
+        ofs_inclined << ",";
+      }
+    }
+    ofs_inclined << "\n";
+
+
+    outputVariables.clear();
+    outputVariables.push_back(OuputVariable(intersectPos2d));
+    outputVariables.push_back(OuputVariable(row));
+    outputVariables.push_back(OuputVariable(col));
+    outputVariables.push_back(OuputVariable(slope2d));
+    outputVariables.push_back(OuputVariable(slope3d));
+    outputVariables.push_back(OuputVariable(aspect2d));
+    outputVariables.push_back(OuputVariable(aspect3d));
+    outputVariables.push_back(OuputVariable(horizontal2d.m_global));
+    outputVariables.push_back(OuputVariable(horizontal3d.m_global));
+    outputVariables.push_back(OuputVariable(horizontal2d.m_beam));
+    outputVariables.push_back(OuputVariable(horizontal3d.m_beam));
+    outputVariables.push_back(OuputVariable(horizontal2d.m_diffuse));
+    outputVariables.push_back(OuputVariable(horizontal3d.m_diffuse));
+    outputVariables.push_back(OuputVariable(horizontal2d.m_reflected));
+    outputVariables.push_back(OuputVariable(horizontal3d.m_reflected));
+    outputVariables.push_back(OuputVariable(horizontal2d.m_shadowMasks));
+    outputVariables.push_back(OuputVariable(horizontal3d.m_shadowMasks));
+    for (int v = 0; v < outputVariables.size(); v++)
+    {
+      outputVariables[v].out(ofs_horizontal);
+      if (v != outputVariables.size())
+      {
+        ofs_horizontal << ",";
+      }
+    }
+    ofs_horizontal << "\n";
+
+    sampleCount++;
+  }
+  ofs_inclined.close();
+  ofs_horizontal.close();
+  return 0;
+
   while (!viewer.done())
   {
     viewer.frame();
