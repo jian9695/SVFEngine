@@ -17,7 +17,7 @@
 
 typedef void(*OnResultsUpdated)(float, SolarRadiation);
 
-class SolarInteractiveHandler : public osgGA::GUIEventHandler
+class SolarInteractiveHandler : public osgGA::GUIEventHandler, public RayCasterBase
 {
 public:
 	SolarInteractiveHandler(
@@ -33,12 +33,14 @@ public:
 	RenderSurface* fisheyeSurface() { return m_cubemap2fisheyeCamera; }
 	void postDrawUpdate();
 	bool queryPoint(const float& mouseX, const float& mouseY, SolarRadiationPoint& solarPoint);
-	std::tuple<osg::Vec3d, osg::Vec3d> SolarInteractiveHandler::queryCoordinatesAtMouse(const float& mouseX, const float& mouseY);
+	std::tuple<osg::Vec3d, osg::Vec3d> queryCoordinatesAtMouse(const float& mouseX, const float& mouseY);
 	osg::Image* getFisheyeForPoint(const int& pointId);
+	std::tuple<SolarRadiationPoint, SolarRadiationPoint> calculateSolarRadiation(SolarParam* solar_param, osgUtil::LineSegmentIntersector* ray, double elevatedHeight);
+	bool isShadowed(const double& alt, const double& azimuth, const osg::Vec3d& pos);
 
 private:
 	void processIntersection(osgUtil::LineSegmentIntersector* ray);
-	SolarRadiation calSolar(SolarParam& solarParam);
+	SolarRadiation calSolar(SolarParam& solarParam, std::string& shadowMasks);
 	bool isEarth();
 	std::tuple<bool, osg::Vec3d, osg::Matrixd> getGeoTransform(osg::Vec3d worldPos);
 	void printfVec3d(osg::Vec3d v);

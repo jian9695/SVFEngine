@@ -105,6 +105,7 @@
     <ClCompile Include="..\SolarEngine\TypeDef.cpp" />
     <ClCompile Include="..\SolarEngine\Utils.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="ShadowCaster.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\SolarEngine\Cubemap.h" />
@@ -116,6 +117,8 @@
     <ClInclude Include="..\SolarEngine\SolarInteractiveHandler.h" />
     <ClInclude Include="..\SolarEngine\TypeDef.h" />
     <ClInclude Include="..\SolarEngine\Utils.h" />
+    <ClInclude Include="GDAL_DS.h" />
+    <ClInclude Include="ShadowCaster.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

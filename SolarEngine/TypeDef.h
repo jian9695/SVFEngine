@@ -212,6 +212,10 @@ public:
 	//	return newrad;
 	//}
 
+  void print(std::string prefix = "") 
+	{
+		printf("%s, global=%f,beam=%f,dif=%f,ref=%f\n", prefix.data(), m_global,m_beam,m_diffuse,m_reflected);
+	}
 };
 
 //structure of solar vector
@@ -302,5 +306,121 @@ struct SolarRadiationPoint : public SolarParam, public SolarRadiation
 	std::string toString(std::string& names, std::string& values);
 };
 
+//https://www.scratchapixel.com/code.php?id=10&origin=/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes&src=1
+class Ray
+{
+public:
+	Ray(const osg::Vec3d& orig, const osg::Vec3d& dir)
+	{
+		this->orig = orig;
+		this->dir = dir;
+		this->dir.normalize();
+		invdir = osg::Vec3d(1.0 / this->dir.x(), 1.0 / this->dir.y(), 1.0 / this->dir.z());
+		sign[0] = (invdir.x() < 0);
+		sign[1] = (invdir.y() < 0);
+		sign[2] = (invdir.z() < 0);
+	}
+
+
+	Ray(const osg::Vec2d& orig, const osg::Vec2d& dir)
+		:Ray(osg::Vec3d(orig.x(), orig.y(), 0.0), osg::Vec3d(dir.x(), dir.y(), 0.0))
+	{
+	}
+
+	//bool intersect(const AABBox &bb, double &t) const
+	//{
+	//		double tmin, tmax, tymin, tymax, tzmin, tzmax;
+
+	//		tmin = (bb.bounds[sign[0]].x() - orig.x()) * invdir.x();
+	//		tmax = (bb.bounds[1 - sign[0]].x() - orig.x()) * invdir.x();
+	//		tymin = (bb.bounds[sign[1]].y() - orig.y()) * invdir.y();
+	//		tymax = (bb.bounds[1 - sign[1]].y() - orig.y()) * invdir.y();
+
+	//		if ((tmin > tymax) || (tymin > tmax))
+	//				return false;
+
+	//		if (tymin > tmin)
+	//				tmin = tymin;
+	//		if (tymax < tmax)
+	//				tmax = tymax;
+
+	//		tzmin = (bb.bounds[sign[2]].z() - orig.z()) * invdir.z();
+	//		tzmax = (bb.bounds[1 - sign[2]].z() - orig.z()) * invdir.z();
+
+	//		if ((tmin > tzmax) || (tzmin > tmax))
+	//				return false;
+
+	//		if (tzmin > tmin)
+	//				tmin = tzmin;
+	//		if (tzmax < tmax)
+	//				tmax = tzmax;
+
+	//		t = tmin;
+
+	//		if (t < 0) {
+	//				t = tmax;
+	//				if (t < 0) return false;
+	//		}
+
+	//		return true;
+	//}
+
+	osg::Vec3d orig, dir; // ray orig and dir 
+	osg::Vec3d invdir;
+	int sign[3];
+};
+
+class AABBox
+{
+public:
+	AABBox(const osg::Vec3d& b0, const osg::Vec3d& b1) { bounds[0] = b0, bounds[1] = b1; }
+
+	AABBox(const osg::Vec2d& b0, const osg::Vec2d& b1) { bounds[0] = osg::Vec3d(b0.x(), b0.y(), 0.0), bounds[1] = osg::Vec3d(b1.x(), b1.y(), 0.0); }
+
+	bool intersect(Ray r) const
+	{
+		double t;
+		return	intersect(r, t);
+	}
+
+	bool intersect(const Ray& r, double& t) const
+	{
+		double tmin, tmax, tymin, tymax, tzmin, tzmax;
+
+		tmin = (bounds[r.sign[0]].x() - r.orig.x()) * r.invdir.x();
+		tmax = (bounds[1 - r.sign[0]].x() - r.orig.x()) * r.invdir.x();
+		tymin = (bounds[r.sign[1]].y() - r.orig.y()) * r.invdir.y();
+		tymax = (bounds[1 - r.sign[1]].y() - r.orig.y()) * r.invdir.y();
+
+		if ((tmin > tymax) || (tymin > tmax))
+			return false;
+
+		if (tymin > tmin)
+			tmin = tymin;
+		if (tymax < tmax)
+			tmax = tymax;
+
+		tzmin = (bounds[r.sign[2]].z() - r.orig.z()) * r.invdir.z();
+		tzmax = (bounds[1 - r.sign[2]].z() - r.orig.z()) * r.invdir.z();
+
+		if ((tmin > tzmax) || (tzmin > tmax))
+			return false;
+
+		if (tzmin > tmin)
+			tmin = tzmin;
+		if (tzmax < tmax)
+			tmax = tzmax;
+
+		t = tmin;
+
+		if (t < 0) {
+			t = tmax;
+			if (t < 0) return false;
+		}
+
+		return true;
+	}
+	osg::Vec3d bounds[2];
+};
 
 

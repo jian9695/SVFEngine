@@ -8,6 +8,12 @@
 #include "Utils.h"
 #include <osg/Node>
 
+class RayCasterBase
+{
+public:
+	virtual bool isShadowed(const double& alt, const double& azimuth, const osg::Vec3d& pos) { return false; };
+};
+
 class GrassSolar
 {
 public:
@@ -16,7 +22,7 @@ public:
 		std::vector<SunVector> getSunVectors(SolarParam& sparam);
 		SolarRadiation calculateSolarRadiation(SolarParam& solar_param);
 		SolarRadiation calculateSolarRadiation(SolarParam& solar_param, osg::Node* sceneNode, osg::Vec3d pos);
-
+		std::tuple<SolarRadiationPoint, SolarRadiationPoint> calculateSolarRadiation(SolarParam solarParam, const osg::Vec3d& pos, RayCasterBase* rayCaster);
 private:
 	unsigned int m_curTimeStep;
 	bool m_COLLECT_SUN_VECTOR = false;

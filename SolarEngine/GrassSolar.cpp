@@ -770,6 +770,63 @@ SolarRadiation GrassSolar::calculateSolarRadiation(SolarParam& solar_param, osg:
 	return rad;
 }
 
+std::tuple<SolarRadiationPoint, SolarRadiationPoint> GrassSolar::calculateSolarRadiation(SolarParam solarParam, const osg::Vec3d& pos, RayCasterBase* rayCaster)
+{
+	solarParam.m_shadowInfo = nullptr;
+	SolarRadiation annualRadInclined;
+	annualRadInclined.Zero();
+	SolarRadiation annualRadHorizontal;
+	annualRadHorizontal.Zero();
+	double slope = solarParam.m_slope;
+	double aspect = solarParam.m_aspect;
+	std::string shadowMasks = "";
+	std::vector<SolarRadiation> dailyRads;
+	int startDay = solarParam.m_startDay;
+	int endDay = solarParam.m_endDay;
+	if (solarParam.m_isSingleDay && endDay > startDay)
+		endDay = startDay;
+	int lastSteps = 0;
+	for (int day = startDay; day <= endDay; day++)
+	{
+		solarParam.m_day = day;
+		std::vector<SunVector> sunVecs = getSunVectors(solarParam);
+		if (lastSteps != sunVecs.size())
+		{
+			if (solarParam.m_shadowInfo)
+				delete[] solarParam.m_shadowInfo;
+			solarParam.m_shadowInfo = new bool[sunVecs.size()];
+		}
+
+		for (int n = 0; n < sunVecs.size(); n++)
+		{
+			SunVector sunVec = sunVecs[n];
+			solarParam.m_shadowInfo[n] = rayCaster->isShadowed((double)sunVec.m_alt, (double)sunVec.m_azimuth, pos);
+			shadowMasks += (solarParam.m_shadowInfo[n] ? "1" : "0");
+			shadowMasks += ",";
+		}
+		//printf("%s\n", shadowInfo.data());
+		solarParam.m_day = day;
+		solarParam.m_slope = slope;
+		solarParam.m_aspect = aspect;
+		SolarRadiation dailyRadInclined = calculateSolarRadiation(solarParam);
+		annualRadInclined = annualRadInclined + dailyRadInclined;
+		dailyRads.push_back(dailyRadInclined);
+
+		solarParam.m_slope = 0;
+		solarParam.m_aspect = 0;
+		SolarRadiation dailyRadHorizontal = calculateSolarRadiation(solarParam);
+		annualRadHorizontal = annualRadHorizontal + dailyRadHorizontal;
+	}
+	if (solarParam.m_shadowInfo)
+		delete[] solarParam.m_shadowInfo;
+	annualRadInclined.m_shadowMasks = shadowMasks;
+	annualRadHorizontal.m_shadowMasks = shadowMasks;
+	SolarRadiationPoint solaPointInclined(pos, solarParam, annualRadInclined);
+	SolarRadiationPoint solarPointHorizontal(pos, solarParam, annualRadHorizontal);
+
+	return std::make_tuple(solaPointInclined, solarPointHorizontal);
+}
+
 void PrintVec3d(const osg::Vec3d& vec)
 {
 	printf("%f,%f,%f\n", vec.x(), vec.y(), vec.z());

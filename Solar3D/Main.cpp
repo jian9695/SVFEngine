@@ -20,6 +20,8 @@
 #include "GrassSolar.h"
 #include "SolarInteractiveHandler.h"
 #include "ModelLoader.h"
+#include "ShadowCaster.h"
+#include "GDAL_DS.h"
 
 using namespace osgEarth;
 using namespace osgEarth::Util;
@@ -698,6 +700,42 @@ public:
   }
 };
 
+#include <osg/ComputeBoundsVisitor>
+osg::BoundingBoxd calBound(std::string indir, const std::vector<std::string>& tiles)
+{
+  osg::BoundingBoxd bb;
+  bb.init();
+  for (size_t i = 0; i < tiles.size(); i++)
+  {
+    std::string masterTilePath = indir + tiles[i] + "/" + tiles[i] + ".osgb";
+    osg::ref_ptr<osg::Node> node = osgDB::readNodeFile(masterTilePath);
+    osg::ComputeBoundsVisitor cbs;
+    node->accept(cbs);
+    osg::BoundingBoxd tileBB = cbs.getBoundingBox();
+    bb.expandBy(tileBB);
+  }
+  return bb;
+}
+
+double calPercentageShaded(const std::string& shadowMasks)
+{
+  int total = 0;
+  int totalShaded = 0;
+  for (size_t i = 0; i < shadowMasks.size(); i++)
+  {
+    char c = shadowMasks[i];
+    if (c == ',')
+      continue;
+    int mask = atoi(&c);
+    total++;
+    if (mask == 1)
+    {
+      totalShaded++;
+    }
+  }
+  return (double)totalShaded / (double)total;
+}
+
 int main(int argc, char** argv)
 {
   m_solarParam = createSolarParam();
@@ -716,7 +754,7 @@ int main(int argc, char** argv)
   // thread-safe initialization of the OSG wrapper manager. Calling this here
   // prevents the "unsupported wrapper" messages from OSG
   osgDB::Registry::instance()->getObjectWrapperManager()->findWrapper("osg::Image");
- 
+
   osg::ref_ptr<osg::Node> scene = MapNodeHelper().load(arguments, &viewer);
   if (!scene)
   {
@@ -740,7 +778,7 @@ int main(int argc, char** argv)
 
   osg::ref_ptr<osgGA::CameraManipulator> manip;
   if (m_mapNode)
-  { 
+  {
     // install our default manipulator (do this before calling load)
     manip = new EarthManipulator(arguments);
     // disable the small-feature culling
@@ -761,7 +799,7 @@ int main(int argc, char** argv)
   viewer.setCameraManipulator(manip.get());
 
   m_solarInteractiveHandler = new SolarInteractiveHandler(scene, root, m_mapNode, manip, &viewer, &m_solarParam, onResultsUpdated);
- 
+
 
   unsigned int width, height;
   osg::GraphicsContext::ScreenIdentifier main_screen_id;
@@ -796,7 +834,7 @@ int main(int argc, char** argv)
   // add the state manipulator
   viewer.addEventHandler(new osgGA::StateSetManipulator(viewer.getCamera()->getOrCreateStateSet()));
 
- 
+
   //viewer.setUpViewInWindow(50, 50, 1024, 768);
   viewer.realize();
   while (!viewer.done())
@@ -812,3 +850,4 @@ int main(int argc, char** argv)
   }
   return 0;
 }
+

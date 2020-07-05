@@ -63,6 +63,103 @@ void SolarInteractiveHandler::printfVec3(osg::Vec3 v)
 	printf("%f,%f,%f\n", v.x(), v.y(), v.z());
 }
 
+std::tuple<SolarRadiationPoint, SolarRadiationPoint> SolarInteractiveHandler::calculateSolarRadiation(SolarParam* solar_param, osgUtil::LineSegmentIntersector* ray, double elevatedHeight)
+{
+	if (ray->getIntersections().size() == 0)
+		return std::make_tuple(SolarRadiationPoint(), SolarRadiationPoint());
+	osg::Vec3d worldPos = ray->getFirstIntersection().getWorldIntersectPoint();
+	osg::NodePath nodePath = ray->getFirstIntersection().nodePath;
+	osg::Node* node = nodePath[0];
+	if (!isEarth() && !m_sceneNode->getBound().contains(worldPos))
+		return std::make_tuple(SolarRadiationPoint(), SolarRadiationPoint());
+	bool hasSpatialRef = isEarth();
+	osg::Matrixd local2world = osg::Matrixd::identity();
+	osg::Vec3d geoPos = osg::Vec3d(solar_param->m_lon, solar_param->m_lat, solar_param->m_elev + worldPos.z());
+	if (hasSpatialRef)
+	{
+		std::tie(hasSpatialRef, geoPos, local2world) = getGeoTransform(worldPos);
+		if (geoPos.z() < -1000 || geoPos.z() > 10000)
+			return std::make_tuple(SolarRadiationPoint(), SolarRadiationPoint());
+	}
+	osg::Vec3d orieye, oricenter, oriup;
+	m_viewer->getCamera()->getViewMatrixAsLookAt(orieye, oricenter, oriup);
+	osg::Vec3d _dir = orieye - oricenter;
+	_dir.normalize();
+	osg::Vec3d curcenter = ray->getFirstIntersection().getWorldIntersectPoint();
+	osg::Vec3d cureye = ray->getFirstIntersection().getWorldIntersectPoint() + _dir * 50;
+	osg::Vec3d surfaceNormal = ray->getFirstIntersection().getWorldIntersectNormal();
+	surfaceNormal.normalize();
+	worldPos = worldPos + surfaceNormal * elevatedHeight; //offset from the surface
+	if (hasSpatialRef)
+	{
+		std::tie(hasSpatialRef, geoPos, local2world) = getGeoTransform(worldPos);
+		osg::Matrixd world2local = osg::Matrixd::inverse(local2world);
+		surfaceNormal = surfaceNormal * world2local;
+		surfaceNormal.normalize();
+	}
+
+	for (int i = 0; i < m_cubemap->getNumChildren(); i++)
+	{
+		CubemapSurface* cameraBuffer = (CubemapSurface*)m_cubemap->getChild(i);
+		cameraBuffer->m_pos = worldPos;
+		cameraBuffer->m_local2World = local2world;
+		cameraBuffer->update();
+	}
+	m_cubemap->setNodeMask(true);
+	//_viewer->setCameraManipulator(nullptr, false);
+	//_viewer->getCamera()->setNodeMask(false);
+	m_viewer->frame();
+	for (size_t i = 0; i < 2; i++)
+	{
+		m_viewer->frame();
+	}
+	m_cubemap->setNodeMask(false);
+	//_viewer->setCameraManipulator(nullptr, false);
+	//_viewer->getCamera()->setNodeMask(true);
+
+	//Write out fisheye images
+	//for (size_t i = 0; i < _cubemap->getNumChildren(); i++)
+	//{
+	//	CubemapSurface* face = _cubemap->getFace(i);
+	//	osgDB::writeImageFile(*face->Image(), face->getName() + ".png");
+	//}
+	//osg::ref_ptr<osg::Image> fisheye = _cubemap->toHemisphericalImage(512, 512);
+	//osgDB::writeImageFile(*fisheye, "fisheye2.png");
+	//osgDB::writeImageFile(*_cubemap2fisheyeCamera->Image(), "fisheye.png");
+	double svf = Utils::calSVF(m_cubemap2fisheyeCamera->Image().get(), false);
+
+	SolarParam param = *solar_param;
+	param.m_shadowInfo = nullptr;
+	//param.m_lon = geoPos.x();
+	//param.m_lat = geoPos.y();
+	//param.m_elev = param.m_elev + max(geoPos.z(), 0);
+	param.m_slope = Utils::calculateSlope(surfaceNormal);
+	param.m_aspect = Utils::calculateAspect(surfaceNormal);
+	SolarRadiation solarRadInclined;
+	SolarRadiation solarRadHorizontal;
+	GrassSolar grass;
+	std::tie(solarRadInclined, solarRadHorizontal) = grass.calculateSolarRadiation(param, osg::Vec3d(0, 0, 0), this);
+
+	SolarRadiationPoint solaPointInclined(worldPos, param, solarRadInclined);
+	SolarRadiationPoint solarPointHorizontal(worldPos, param, solarRadHorizontal);
+
+	//std::string shadowMasks;
+	//SolarRadiation solarRad = calSolar(param, shadowMasks);
+	//solarRad.m_svf = svf;
+	//SolarRadiationPoint radPoint(worldPos, param, solarRad);
+	//radPoint.m_shadowMasks = shadowMasks;
+	////m_resultsCallback(svf, solarRad);
+	m_pointRenderer->pushPoint(solaPointInclined, m_cubemap2fisheyeCamera->Image().get());
+
+	//param.m_slope = 0;
+	//param.m_aspect = 0;
+	//param.m_shadowInfo = nullptr;
+	//SolarRadiation solarRad2 = calSolar(param, shadowMasks);
+	//solarRad2.m_shadowMasks = shadowMasks;
+	//SolarRadiationPoint radPoint2(worldPos, param, solarRad2);
+	return std::make_tuple(solaPointInclined, solarPointHorizontal);
+}
+
 void SolarInteractiveHandler::processIntersection(osgUtil::LineSegmentIntersector* ray)
 {
 
@@ -136,10 +233,12 @@ void SolarInteractiveHandler::processIntersection(osgUtil::LineSegmentIntersecto
 	param.m_elev = param.m_elev + max(geoPos.z(), 0);
 	param.m_slope = Utils::calculateSlope(surfaceNormal);
 	param.m_aspect = Utils::calculateAspect(surfaceNormal);
-	SolarRadiation solarRad = calSolar(param);
+	std::string shadowMasks;
+	SolarRadiation solarRad = calSolar(param, shadowMasks);
 	solarRad.m_svf = svf;
 	m_resultsCallback(svf, solarRad);
 	SolarRadiationPoint radPoint(worldPos, param, solarRad);
+	radPoint.m_shadowMasks = shadowMasks;
 	m_pointRenderer->pushPoint(radPoint, m_cubemap2fisheyeCamera->Image().get());
 }
 
@@ -217,7 +316,7 @@ bool SolarInteractiveHandler::handle(const osgGA::GUIEventAdapter& ea, osgGA::GU
 	return false;
 }
 
-SolarRadiation SolarInteractiveHandler::calSolar(SolarParam& solarParam)
+SolarRadiation SolarInteractiveHandler::calSolar(SolarParam& solarParam, std::string& shadowMasks)
 {
 	osg::Image* img = m_cubemap2fisheyeCamera->Image().get();
 	SolarRadiation annualRad;
@@ -240,14 +339,14 @@ SolarRadiation SolarInteractiveHandler::calSolar(SolarParam& solarParam)
 				delete[] solarParam.m_shadowInfo;
 			solarParam.m_shadowInfo = new bool[sunVecs.size()];
 		}
-		std::string shadowInfo = "";
+		shadowMasks = "";
 		for (int n = 0; n < sunVecs.size(); n++)
 		{
 			SunVector sunVec = sunVecs[n];
 			solarParam.m_shadowInfo[n] = m_cubemap->isShadowed((double)sunVec.m_alt, (double)sunVec.m_azimuth);
-			shadowInfo += (solarParam.m_shadowInfo[n] ? "1" : "0");
+			shadowMasks += (solarParam.m_shadowInfo[n] ? "1" : "0");
 			if (n < sunVecs.size() - 1)
-				shadowInfo += ",";
+				shadowMasks += ",";
 		}
 		//printf("%s\n", shadowInfo.data());
 		solarParam.m_day = day;
@@ -258,6 +357,12 @@ SolarRadiation SolarInteractiveHandler::calSolar(SolarParam& solarParam)
 	if (solarParam.m_shadowInfo)
 		delete[] solarParam.m_shadowInfo;
 	return annualRad;
+}
+
+
+bool SolarInteractiveHandler::isShadowed(const double& alt, const double& azimuth, const osg::Vec3d& pos)
+{
+	return m_cubemap->isShadowed(alt, azimuth);
 }
 
 std::tuple<bool, osg::Vec3d, osg::Matrixd> SolarInteractiveHandler::getGeoTransform(osg::Vec3d worldPos)
