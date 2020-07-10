@@ -120,6 +120,16 @@
     <ClInclude Include="GDAL_DS.h" />
     <ClInclude Include="ShadowCaster.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Comparison\compare_horizontal_025.csv" />
+    <None Include="..\Comparison\compare_horizontal_annual_025.csv" />
+    <None Include="..\Comparison\compare_horizontal_monthly_025.csv" />
+    <None Include="..\Comparison\compare_inclined_025.csv" />
+    <None Include="..\Comparison\compare_inclined_annual_025.csv" />
+    <None Include="..\Comparison\compare_inclined_monthly_025.csv" />
+    <None Include="..\Comparison\compare_raycaster_100.csv" />
+    <None Include="..\Comparison\compare_raycaster_1000.csv" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

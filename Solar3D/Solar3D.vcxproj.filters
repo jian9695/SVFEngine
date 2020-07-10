@@ -19,6 +19,9 @@
     <Filter Include="Tests">
       <UniqueIdentifier>{2f4c7a9d-4c5c-4dae-b71e-45dac8a92137}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ComparisonData">
+      <UniqueIdentifier>{8369accc-9512-4654-afd2-352757985770}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -89,5 +92,31 @@
     <ClInclude Include="ShadowCaster.h">
       <Filter>Tests</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Comparison\compare_horizontal_025.csv">
+      <Filter>ComparisonData</Filter>
+    </None>
+    <None Include="..\Comparison\compare_horizontal_annual_025.csv">
+      <Filter>ComparisonData</Filter>
+    </None>
+    <None Include="..\Comparison\compare_horizontal_monthly_025.csv">
+      <Filter>ComparisonData</Filter>
+    </None>
+    <None Include="..\Comparison\compare_inclined_025.csv">
+      <Filter>ComparisonData</Filter>
+    </None>
+    <None Include="..\Comparison\compare_inclined_annual_025.csv">
+      <Filter>ComparisonData</Filter>
+    </None>
+    <None Include="..\Comparison\compare_inclined_monthly_025.csv">
+      <Filter>ComparisonData</Filter>
+    </None>
+    <None Include="..\Comparison\compare_raycaster_100.csv">
+      <Filter>ComparisonData</Filter>
+    </None>
+    <None Include="..\Comparison\compare_raycaster_1000.csv">
+      <Filter>ComparisonData</Filter>
+    </None>
   </ItemGroup>
 </Project>
