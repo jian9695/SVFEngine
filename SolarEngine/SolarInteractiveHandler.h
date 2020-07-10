@@ -38,6 +38,7 @@ public:
 	osg::Image* getFisheyeForPoint(const int& pointId);
 	std::tuple<SolarRadiationPoint, SolarRadiationPoint> calculateSolarRadiation(SolarParam* solar_param, osgUtil::LineSegmentIntersector* ray, double elevatedHeight);
 	bool isShadowed(const double& alt, const double& azimuth, const osg::Vec3d& pos);
+	void resizeCubemap(int size);
 
 private:
 	void processIntersection(osgUtil::LineSegmentIntersector* ray);

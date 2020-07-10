@@ -736,7 +736,7 @@ double calPercentageShaded(const std::string& shadowMasks)
   return (double)totalShaded / (double)total;
 }
 
-int main(int argc, char** argv)
+int testRayCasters(int argc, char** argv)
 {
   m_solarParam = createSolarParam();
 
@@ -854,7 +854,7 @@ int main(int argc, char** argv)
   manip->setHomePosition(bound.center() + osg::Vec3d(0, 0, 5000), bound.center(), osg::Vec3d(0, 1, 0));
   manip->home(0.0);
 
-  ShadowCaster dsmShadowCaster;
+  DSMRayCaster dsmShadowCaster;
   std::vector<std::string> rasterFiles;
   std::vector<osg::BoundingBoxd> bounds;
   rasterFiles.push_back("E:/Code/Weihai_DSM_025_StudyArea.tif");
@@ -864,12 +864,244 @@ int main(int argc, char** argv)
   dsmShadowCaster.Initialize(rasterFiles, bounds, "E:/Code/WeihaiStudyArea/Slope.tif", "E:/Code/WeihaiStudyArea/Aspect.tif");
   GDAL_DS<float>* ds = (GDAL_DS<float>*)dsmShadowCaster.m_rasters[0];
 
-  std::ofstream ofs_inclined("e:/compare_inclined_025.csv");
-  std::ofstream ofs_horizontal("e:/compare_horizontal_025.csv");
-  ofs_inclined << "pos,row,col,slope2d,slope3d,aspect2d,aspect3d,global2d,global3d,beam2d,beam3d,dif2d,dif3d,ref2d,ref3d,percentageShaded2d,percentageShaded3d,shadow2d,shadow3d\n";
-  ofs_horizontal << "pos,row,col,slope2d,slope3d,aspect2d,aspect3d,global2d,global3d,beam2d,beam3d,dif2d,dif3d,ref2d,ref3d,percentageShaded,percentageShaded3d,shadow2d,shadow3d\n";
+  std::ofstream ofs("e:/compare_raycaster.csv");
+  //ofs << "pos,row,col,slope2d,slope3d,aspect2d,aspect3d,global2d,global3d,beam2d,beam3d,dif2d,dif3d,ref2d,ref3d,percentageShaded2d,percentageShaded3d\n";
+
+  srand(time(NULL));
+  RayCasterBase* cubemapCaster = (RayCasterBase*)m_solarInteractiveHandler.get();
+  RayCasterBase* osgCaster = new OSGRayCaster(scene.get());
+  int cubemapSize = 4;
+  m_solarInteractiveHandler->resizeCubemap(cubemapSize);
+  ofs << "size, percentage\n";
+
+  std::vector<osg::ref_ptr<osgUtil::LineSegmentIntersector>> samplePositions;
+  int requiredSamples = 1000;
+  while (samplePositions.size() < requiredSamples)
+  {
+    int col, row, index;
+    double xrand = rand() / (double)RAND_MAX;
+    double yrand = rand() / (double)RAND_MAX;
+    double x = bound.xMin() + (bound.xMax() - bound.xMin()) * xrand;
+    double y = bound.yMin() + (bound.yMax() - bound.yMin()) * yrand;
+    std::tie(col, row, index) = ds->getCellIndex(x, y);
+    int margin = 350;
+    if (col < margin || row < margin || col > ds->ncols - margin || row > ds->nrows - margin)
+      continue;
+
+    osg::Vec3d end = osg::Vec3d(x, y, -1000);
+    osg::Vec3d	start = osg::Vec3d(x, y, 1000);
+    osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector = new osgUtil::LineSegmentIntersector(start, end);
+    osgUtil::IntersectionVisitor intersectVisitor(intersector.get());
+    scene->accept(intersectVisitor);
+    if (!intersector->containsIntersections())
+      continue;
+    osg::Vec3d intersectPos3d = intersector->getFirstIntersection().getWorldIntersectPoint();
+    osg::Vec3d intersectNormal = intersector->getFirstIntersection().getWorldIntersectNormal();
+    samplePositions.push_back(intersector);
+  }
+
+  SolarParam param;
+  param.m_linke = 3.0;
+  param.m_time_step = 0.5;
+  param.m_lon = 122.1204;
+  param.m_lat = 37.5131;
+  param.m_slope = 0;
+  param.m_aspect = 0;
+  param.m_isSingleDay = true;
+  param.m_day = 183;
+  param.m_startDay = 1;
+  param.m_endDay = 365;
+  double elevatedHeight = 0.1;
+  while (cubemapSize < 2050)
+  {
+    m_solarInteractiveHandler->resizeCubemap(cubemapSize);
+    double summedPercentage = 0;
+    for (size_t i = 0; i < requiredSamples; i++)
+    {
+      osg::Vec3d intersectPos3d = samplePositions[i]->getFirstIntersection().getWorldIntersectPoint();
+      osg::Vec3d intersectNormal = samplePositions[i]->getFirstIntersection().getWorldIntersectNormal();
+      osg::Vec3d pos = intersectPos3d + osg::Vec3d(0, 0, elevatedHeight);
+      SolarRadiationPoint inclined3d, horizontal3d;
+      std::tie(inclined3d, horizontal3d) = m_solarInteractiveHandler->calculateSolarRadiation(&param, samplePositions[i], elevatedHeight);
+      
+      double angleStep = 5;
+      double alt = 5;
+      int totalCount = 0;
+      int matchCount = 0;
+      while (alt <= 85)
+      {
+        double azimuth = 0;
+        while (azimuth < 360)
+        {
+          bool cubemapShaded = cubemapCaster->isShadowed(alt, azimuth, pos);
+          bool osgShaded = osgCaster->isShadowed(alt, azimuth, pos);
+          if (cubemapShaded == osgShaded)
+          {
+            matchCount++;
+          }
+          totalCount++;
+          azimuth += angleStep;
+        }
+        alt += angleStep;
+      }
+      double percentage = (double)matchCount / (double)totalCount * 100;
+      summedPercentage += percentage;
+      std::vector<OuputVariable> outputVariables;
+      outputVariables.push_back(OuputVariable(cubemapSize));
+      outputVariables.push_back(OuputVariable(percentage));
+      for (int v = 0; v < outputVariables.size(); v++)
+      {
+        outputVariables[v].out(ofs);
+        if (v != outputVariables.size())
+        {
+          ofs << ",";
+        }
+      }
+      ofs << "\n";
+    }
+    double averagePercentage = summedPercentage / samplePositions.size();
+    printf("%d, %f%%\n", cubemapSize, averagePercentage);
+    cubemapSize = cubemapSize * 2;
+  }
+  ofs.close();
+  return 0;
+}
+
+int main(int argc, char** argv)
+{
+  //return testRayCasters(argc, argv);
+  m_solarParam = createSolarParam();
+
+  osg::ArgumentParser arguments(&argc, argv);
+
+  //if (argc < 2)
+  //  return 0;
+
+  // create a viewer:
+  osgViewer::Viewer viewer(arguments);
+
+  // Tell the database pager to not modify the unref settings
+  viewer.getDatabasePager()->setUnrefImageDataAfterApplyPolicy(true, false);
+
+  // thread-safe initialization of the OSG wrapper manager. Calling this here
+  // prevents the "unsupported wrapper" messages from OSG
+  osgDB::Registry::instance()->getObjectWrapperManager()->findWrapper("osg::Image");
+
+  std::vector<std::string> tilenames;
+  tilenames.push_back("Tile_-002_-016");
+  tilenames.push_back("Tile_-002_-017");
+  tilenames.push_back("Tile_-003_-016");
+  tilenames.push_back("Tile_-003_-017");
+  osg::BoundingBoxd bound = calBound("E:/Data/weihai/Data/", tilenames);
+  osg::ref_ptr<osg::Node> scene = ModelLoader::Load3DTiles("E:/Data/weihai/Data/", tilenames, false);
+  osg::ref_ptr<osg::Node> studyArea = osgDB::readNodeFile("E:/Code/StudyArea.osgb");
+  ((osg::Group*)scene.get())->addChild(studyArea.get());
+  scene->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF | osg::StateAttribute::OVERRIDE | osg::StateAttribute::PROTECTED);
+  studyArea->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE | osg::StateAttribute::PROTECTED);
+
+  //osg::ref_ptr<osg::Node> scene = MapNodeHelper().load(arguments, &viewer);
+  //if (!scene)
+  //{
+  //  scene = osgDB::readNodeFiles(arguments);
+  //}
+
+  //if (!scene)
+  //{
+  //  scene = ModelLoader::Load3DTiles(arguments[1]);
+  //}
+
+  if (!scene)
+    return 0;
+
+  osg::ref_ptr<osg::Group> root = new osg::Group;
+  root->addChild(scene.get());
+
+  viewer.setSceneData(root.get());
+
+  m_mapNode = MapNode::findMapNode(scene);
+
+  osg::ref_ptr<osgGA::CameraManipulator> manip;
+  if (m_mapNode)
+  {
+    // install our default manipulator (do this before calling load)
+    manip = new EarthManipulator(arguments);
+    // disable the small-feature culling
+    viewer.getCamera()->setSmallFeatureCullingPixelSize(-1.0f);
+    // set a near/far ratio that is smaller than the default. This allows us to get
+    // closer to the ground without near clipping. If you need more, use --logdepth
+    viewer.getCamera()->setNearFarRatio(0.0001);
+  }
+  else
+  {
+    manip = new osgGA::TrackballManipulator();
+    if (!Utils::nodeHasNormals(scene))
+    {
+      viewer.getCamera()->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
+    }
+  }
+
+  viewer.setCameraManipulator(manip.get());
+
+  m_solarInteractiveHandler = new SolarInteractiveHandler(scene, root, m_mapNode, manip, &viewer, &m_solarParam, onResultsUpdated);
+
+
+  unsigned int width, height;
+  osg::GraphicsContext::ScreenIdentifier main_screen_id;
+  osg::GraphicsContext::WindowingSystemInterface* wsi = osg::GraphicsContext::getWindowingSystemInterface();
+  main_screen_id.readDISPLAY();
+  main_screen_id.setUndefinedScreenDetailsToDefaultScreen();
+  wsi->getScreenResolution(main_screen_id, width, height);
+
+  // create a surface to house the controls
+  CustomControls::ControlCanvas* canvas = CustomControls::ControlCanvas::getOrCreate(&viewer);
+  // create some controls.
+  createMainUIControls(canvas, width, height);
+  createPopup(canvas);
+
+  //osg::Group* group = (osg::Group*)viewer.getCamera()->getChild(0);
+ // group->addChild(m_northArrow);
+  // zoom to a good startup position
+
+  viewer.addEventHandler(m_solarInteractiveHandler);
+  viewer.addEventHandler(new MainUIEventHandler);
+  viewer.addEventHandler(new osgViewer::ThreadingHandler);
+
+  // add the window size toggle handler
+  viewer.addEventHandler(new osgViewer::WindowSizeHandler);
+
+  // add the stats handler
+  viewer.addEventHandler(new osgViewer::StatsHandler);
+
+  // add the LOD Scale handler
+  viewer.addEventHandler(new osgViewer::LODScaleHandler);
+
+  // add the state manipulator
+  viewer.addEventHandler(new osgGA::StateSetManipulator(viewer.getCamera()->getOrCreateStateSet()));
+  viewer.setUpViewInWindow(50, 50, 1024, 768);
+  viewer.realize();
+  for (size_t i = 0; i < 20; i++)
+  {
+    viewer.frame();
+  }
+  manip->setHomePosition(bound.center() + osg::Vec3d(0, 0, 5000), bound.center(), osg::Vec3d(0, 1, 0));
+  manip->home(0.0);
+
+  DSMRayCaster dsmShadowCaster;
+  std::vector<std::string> rasterFiles;
+  std::vector<osg::BoundingBoxd> bounds;
+  rasterFiles.push_back("E:/Code/Weihai_DSM_025_StudyArea.tif");
+  //rasterFiles.push_back("E:/Code/Weihai_DSM_1m.tif");
+  bounds.push_back(bound);
+  //bounds.push_back(osg::BoundingBoxd());
+  dsmShadowCaster.Initialize(rasterFiles, bounds, "E:/Code/WeihaiStudyArea/Slope.tif", "E:/Code/WeihaiStudyArea/Aspect.tif");
+  GDAL_DS<float>* ds = (GDAL_DS<float>*)dsmShadowCaster.m_rasters[0];
+
+  std::ofstream ofs_inclined("e:/compare_inclined_monthly_025.csv");
+  std::ofstream ofs_horizontal("e:/compare_horizontal_monthly_025.csv");
+  ofs_inclined << "pos,row,col,slope2d,slope3d,aspect2d,aspect3d,global2d,global3d,beam2d,beam3d,dif2d,dif3d,ref2d,ref3d,percentageShaded2d,percentageShaded3d\n";
+  ofs_horizontal << "pos,row,col,slope2d,slope3d,aspect2d,aspect3d,global2d,global3d,beam2d,beam3d,dif2d,dif3d,ref2d,ref3d,percentageShaded,percentageShaded3d\n";
   int sampleCount = 0;
-  int requiredSamples = 10;
+  int requiredSamples = 1000;
   srand(time(NULL));
   while (sampleCount < requiredSamples)
   {
@@ -880,11 +1112,14 @@ int main(int argc, char** argv)
     param.m_lat = 37.5131;
     param.m_slope = 0;
     param.m_aspect = 0;
-    param.m_isSingleDay = true;
+    param.m_isSingleDay = false;
     param.m_day = 183;
     param.m_startDay = 1;
-    param.m_endDay = 365;
-    double elevatedHeight = 0.5;
+    param.m_endDay = 31;
+    double elevatedHeight = 0.1;
+    SolarParam testParam = param;
+    testParam.m_isSingleDay = true;
+    testParam.m_time_step = 0.1;
 
     int col, row, index;
     double xrand = rand() / (double)RAND_MAX;
@@ -908,6 +1143,13 @@ int main(int argc, char** argv)
     scene->accept(intersectVisitor);
     if (!intersector->containsIntersections())
       continue;
+    osg::Vec3d intersectPos3d = intersector->getFirstIntersection().getWorldIntersectPoint();
+    osg::Vec3d intersectNormal = intersector->getFirstIntersection().getWorldIntersectNormal();
+    intersectNormal.normalize();
+    slope3d = Utils::calculateSlope(intersectNormal);
+    aspect3d = Utils::calculateAspect(intersectNormal);
+    if (slope2d > 5 || slope3d > 5)
+      continue;
 
     SolarRadiationPoint inclined2d, horizontal2d, inclined3d, horizontal3d;
     std::tie(inclined2d, horizontal2d) = dsmShadowCaster.calculateSolarRadiation(param, intersectPos2d);
@@ -915,29 +1157,29 @@ int main(int argc, char** argv)
     if (percentageShaded2d > 0.75)
       continue;
 
-    osg::Vec3d intersectPos3d = intersector->getFirstIntersection().getWorldIntersectPoint();
-    osg::Vec3d intersectNormal = intersector->getFirstIntersection().getWorldIntersectNormal();
-    intersectNormal.normalize();
-    slope3d = Utils::calculateSlope(intersectNormal);
-    aspect3d = Utils::calculateAspect(intersectNormal);
+    testParam.m_slope = slope3d;
+    testParam.m_aspect = aspect3d;
     param.m_slope = slope3d;
     param.m_aspect = aspect3d;
+
     std::tie(inclined3d, horizontal3d) = m_solarInteractiveHandler->calculateSolarRadiation(&param, intersector, elevatedHeight);
     double percentageShaded3d = calPercentageShaded(inclined3d.m_shadowMasks);
     if (percentageShaded3d > 0.75)
       continue;
 
-    if (abs(horizontal2d.m_beam - horizontal3d.m_beam) / horizontal3d.m_beam > 0.4)
-    {
-      m_solarInteractiveHandler->pushPoint(inclined3d);
-      printf("%d/%d\n", sampleCount, requiredSamples);
-      sampleCount++;
-    }
-    else
-    {
-      continue;
-    }
+    //std::tie(inclined2d, horizontal2d) = dsmShadowCaster.calculateSolarRadiation(param, intersectPos2d);
+    //std::tie(inclined3d, horizontal3d) = m_solarInteractiveHandler->calculateSolarRadiation(&param, intersector, elevatedHeight);
 
+    //if (abs(horizontal2d.m_beam - horizontal3d.m_beam) / horizontal3d.m_beam > 0.4)
+    //{
+      //m_solarInteractiveHandler->pushPoint(inclined3d);
+      //printf("%d/%d\n", sampleCount, requiredSamples);
+    //}
+    //else
+    //{
+    //  continue;
+    //}
+    
     std::vector<OuputVariable> outputVariables;
     outputVariables.push_back(OuputVariable(intersectPos2d));
     outputVariables.push_back(OuputVariable(row));
@@ -956,8 +1198,8 @@ int main(int argc, char** argv)
     outputVariables.push_back(OuputVariable(inclined3d.m_reflected));
     outputVariables.push_back(OuputVariable(percentageShaded2d));
     outputVariables.push_back(OuputVariable(percentageShaded3d));
-    outputVariables.push_back(OuputVariable(inclined2d.m_shadowMasks));
-    outputVariables.push_back(OuputVariable(inclined3d.m_shadowMasks));
+    //outputVariables.push_back(OuputVariable(inclined2d.m_shadowMasks));
+    //outputVariables.push_back(OuputVariable(inclined3d.m_shadowMasks));
     for (int v = 0; v < outputVariables.size(); v++)
     {
       outputVariables[v].out(ofs_inclined);
@@ -987,8 +1229,8 @@ int main(int argc, char** argv)
     outputVariables.push_back(OuputVariable(horizontal3d.m_reflected));
     outputVariables.push_back(OuputVariable(percentageShaded2d));
     outputVariables.push_back(OuputVariable(percentageShaded3d));
-    outputVariables.push_back(OuputVariable(horizontal2d.m_shadowMasks));
-    outputVariables.push_back(OuputVariable(horizontal3d.m_shadowMasks));
+    //outputVariables.push_back(OuputVariable(horizontal2d.m_shadowMasks));
+    //outputVariables.push_back(OuputVariable(horizontal3d.m_shadowMasks));
     for (int v = 0; v < outputVariables.size(); v++)
     {
       outputVariables[v].out(ofs_horizontal);
@@ -998,10 +1240,13 @@ int main(int argc, char** argv)
       }
     }
     ofs_horizontal << "\n";
+
+    sampleCount++;
+    printf("%d/%d\n", sampleCount, requiredSamples);
   }
   ofs_inclined.close();
   ofs_horizontal.close();
-  //return 0;
+  return 0;
 
   while (!viewer.done())
   {

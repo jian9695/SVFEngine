@@ -20,10 +20,11 @@ SolarInteractiveHandler::SolarInteractiveHandler(
 	m_sceneNode = sceneNode;
 	m_mapNode = mapNode;
 
+	int cubemapSize = 512;
   if (m_mapNode)
-		m_cubemap = Cubemap::create(512, mapNode);
+		m_cubemap = Cubemap::create(cubemapSize, mapNode);
 	else
-		m_cubemap = Cubemap::create(512, sceneNode);
+		m_cubemap = Cubemap::create(cubemapSize, sceneNode);
 	m_cubemap->setNodeMask(false);
 	root->addChild(m_cubemap);
 
@@ -46,6 +47,11 @@ SolarInteractiveHandler::SolarInteractiveHandler(
 	m_pointRenderer->setSceneDepthImage(depthImage.get());
 	m_pointRenderer->setSceneCamera(m_viewer->getCamera());
 	m_root->addChild(m_pointRenderer);
+}
+
+void SolarInteractiveHandler::resizeCubemap(int size)
+{
+	m_cubemap->resize(size);
 }
 
 SolarInteractiveHandler::~SolarInteractiveHandler()

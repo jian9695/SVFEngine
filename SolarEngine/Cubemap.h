@@ -40,4 +40,5 @@ public:
 	RenderSurface* toHemisphericalSurface();
 	osg::Image* toHemisphericalImage(int width, int height);
 	bool isShadowed(double alt, double azimuth);
+	void resize(int size);
 };

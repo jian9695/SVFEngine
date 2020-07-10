@@ -207,12 +207,12 @@ public:
 			return;
 		if (m_texture->getTextureWidth() == newWidth && m_texture->getTextureHeight() == newHeight)
 			return;
-		resize(newWidth, newHeight);
-		m_texture->setTextureSize(newWidth, newHeight);
-		if (m_image)
-		{
-			m_image->scaleImage(newWidth, newHeight, 1);
-		}
+		osg::Camera::resize(newWidth, newHeight);
+		//m_texture->setTextureSize(newWidth, newHeight);
+		//if (m_image)
+		//{
+		//	m_image->scaleImage(newWidth, newHeight, 1);
+		//}
 	}
 };
 

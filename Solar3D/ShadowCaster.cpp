@@ -11,7 +11,7 @@
 //#include "GrassSolar.h"
 #include "GDAL_DS.h"
 
-ShadowCaster::~ShadowCaster()
+DSMRayCaster::~DSMRayCaster()
 {
 	for each (GDAL_DS<float> * ds in m_rasters)
 	{
@@ -25,7 +25,7 @@ ShadowCaster::~ShadowCaster()
 	m_aspectData = nullptr;
 }
 
-bool ShadowCaster::Intersects(const Ray& r, const osg::BoundingBoxd& aabb, double& t)
+bool DSMRayCaster::Intersects(const Ray& r, const osg::BoundingBoxd& aabb, double& t)
 {
 	double tmin, tmax, tymin, tymax, tzmin, tzmax;
 	osg::Vec3d bounds[2];
@@ -65,7 +65,7 @@ bool ShadowCaster::Intersects(const Ray& r, const osg::BoundingBoxd& aabb, doubl
 	return true;
 }
 
-void ShadowCaster::Initialize(std::vector<std::string> rasterFiles, std::vector<osg::BoundingBoxd> bounds, std::string slopeFile, std::string aspectFile)
+void DSMRayCaster::Initialize(std::vector<std::string> rasterFiles, std::vector<osg::BoundingBoxd> bounds, std::string slopeFile, std::string aspectFile)
 {
 	if (m_slopeData)
 		delete[] m_slopeData;
@@ -114,7 +114,7 @@ struct Color3
 	}
 };
 
-std::tuple<int, int, int, int, double, osg::BoundingBoxd> ShadowCaster::GetCellIndex(double x, double y)
+std::tuple<int, int, int, int, double, osg::BoundingBoxd> DSMRayCaster::GetCellIndex(double x, double y)
 {
 	for (long i = 0; i < m_rasters.size(); i++)
 	{
@@ -139,7 +139,7 @@ std::tuple<int, int, int, int, double, osg::BoundingBoxd> ShadowCaster::GetCellI
 	return std::make_tuple(-1, -1, -1, -1, -1, osg::BoundingBoxd());
 }
 
-bool ShadowCaster::Intersects(const Ray& ray, double& t, double& slope, double& aspect)
+bool DSMRayCaster::Intersects(const Ray& ray, double& t, double& slope, double& aspect)
 {
 	slope = 0;
 	aspect = 0;
@@ -177,7 +177,7 @@ bool ShadowCaster::Intersects(const Ray& ray, double& t, double& slope, double& 
 	return false;
 }
 
-std::tuple<SolarRadiationPoint, SolarRadiationPoint> ShadowCaster::calculateSolarRadiation(SolarParam& solar_param, osg::Vec3d pos)
+std::tuple<SolarRadiationPoint, SolarRadiationPoint> DSMRayCaster::calculateSolarRadiation(SolarParam& solar_param, osg::Vec3d pos)
 {
 	GrassSolar grass;
 	return grass.calculateSolarRadiation(solar_param, pos, this);
@@ -223,7 +223,7 @@ std::tuple<SolarRadiationPoint, SolarRadiationPoint> ShadowCaster::calculateSola
 	return std::make_tuple(radPoint, radPoint2);*/
 }
 
-bool ShadowCaster::isShadowed(const double& alt, const double& azimuth, const osg::Vec3d& pos)
+bool DSMRayCaster::isShadowed(const double& alt, const double& azimuth, const osg::Vec3d& pos)
 {
 	osg::Vec3d dir = Utils::solarAngle2Vector(alt, azimuth);
 	double t,slope,aspect;

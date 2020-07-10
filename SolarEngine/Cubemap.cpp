@@ -216,3 +216,13 @@ bool Cubemap::isShadowed(double alt, double azimuth)
 	return color.a() > 0.95;
 }
 
+void Cubemap::resize(int size)
+{
+	for (size_t i = 0; i < 6; i++)
+	{
+	   CubemapSurface* face = (CubemapSurface*)getChild(i);
+		 if (i == 0 && size == face->Image()->s())
+			 return;
+		 face->resize(size, size);
+	}
+}
